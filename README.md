@@ -169,14 +169,18 @@ npm run lint
    - 빌드 설정: `npm run build`
    - 출력 디렉토리: `dist`
 
-2. **환경 변수 설정**
+2. **환경 변수 설정 (백엔드 연결)**
    ```
    VITE_API_URL=https://api.wedifit.me
    ```
+   **참고**: 백엔드가 Cloudflare Tunnel, VPS, 또는 다른 서비스에 배포되어도 상관없습니다. 
+   프론트엔드에서 접근 가능한 백엔드 URL만 설정하면 됩니다.
+   자세한 내용은 [백엔드 배포 옵션 가이드](./BACKEND_DEPLOYMENT_OPTIONS.md)를 참조하세요.
 
 3. **도메인 연결**
    - `wedifit.me` 도메인 추가
    - DNS 설정 완료
+   - **가비아 사용 시**: [가비아 DNS 설정 가이드](./GABIA_DNS_SETUP_GUIDE.md) 참조
 
 ### 배포 전 확인사항
 
