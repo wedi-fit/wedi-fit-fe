@@ -3,7 +3,7 @@
  * MediaPipe 기반 BE API와 통신
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.wedifit.me';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.wedifit.me';
 
 export interface BodyTypeMeasurements {
     shoulder_width: number;

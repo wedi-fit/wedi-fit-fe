@@ -230,7 +230,7 @@ export const VirtualFitting: React.FC<VirtualFittingProps> = ({ moodResult }) =>
                             {analysisResult.visualizationImageUrl && (
                                 <div className="mb-6 rounded-xl overflow-hidden border-2 border-emerald-200">
                                     <img
-                                        src={`${import.meta.env.VITE_API_BASE_URL || 'https://api.wedifit.me'}${analysisResult.visualizationImageUrl}`}
+                                        src={`${import.meta.env.VITE_API_URL || 'https://api.wedifit.me'}${analysisResult.visualizationImageUrl}`}
                                         alt="체형 분석 시각화"
                                         className="w-full h-auto"
                                         onError={(e) => {
@@ -372,7 +372,7 @@ export const VirtualFitting: React.FC<VirtualFittingProps> = ({ moodResult }) =>
                                 <div className="aspect-[3/4] bg-stone-100 relative">
                                     {result.success ? (
                                         <img
-                                            src={`${import.meta.env.VITE_API_BASE_URL || 'https://api.wedifit.me'}${result.image_url}`}
+                                            src={`${import.meta.env.VITE_API_URL || 'https://api.wedifit.me'}${result.image_url}`}
                                             alt={result.dress_name}
                                             className="w-full h-full object-cover"
                                             onError={(e) => {
