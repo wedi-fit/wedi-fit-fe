@@ -1,7 +1,7 @@
 import { Vendor, VendorCategory } from '../types';
 import { formatPrice, parseOtherOptions, extractMinPriceFromBasePrice } from '../utils/priceFormatter';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.wedifit.me';
 
 interface MakeupPriceApiResponse {
     id: string;

@@ -75,7 +75,7 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({ location, businessName }) =>
             // 백엔드 API를 통해 주소를 좌표로 변환
             const geocodeAddress = async () => {
                 try {
-                    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+                    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.wedifit.me';
                     const response = await fetch(`${API_BASE_URL}/api/v1/geocode?query=${encodeURIComponent(location)}`);
                     
                     if (!response.ok) {
