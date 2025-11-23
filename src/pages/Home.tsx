@@ -27,30 +27,45 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, onVendorClick, onN
         const loadVendors = async () => {
             setLoading(true);
             const allVendors: Vendor[] = [];
+            const errors: string[] = [];
             
             // 스튜디오, 드레스, 메이크업 업체를 독립적으로 조회 (하나가 실패해도 다른 것은 로드)
             try {
+                console.log('[Home] Fetching studios...');
                 const studios = await fetchStudios();
                 allVendors.push(...studios);
-                console.log(`Loaded ${studios.length} studios`);
+                console.log(`[Home] ✅ Loaded ${studios.length} studios`);
             } catch (error) {
-                console.error('Failed to load studios:', error);
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                console.error('[Home] ❌ Failed to load studios:', errorMsg);
+                errors.push(`스튜디오 로드 실패: ${errorMsg}`);
             }
             
             try {
+                console.log('[Home] Fetching dress vendors...');
                 const dressVendors = await fetchDressVendors();
                 allVendors.push(...dressVendors);
-                console.log(`Loaded ${dressVendors.length} dress vendors`);
+                console.log(`[Home] ✅ Loaded ${dressVendors.length} dress vendors`);
             } catch (error) {
-                console.error('Failed to load dress vendors:', error);
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                console.error('[Home] ❌ Failed to load dress vendors:', errorMsg);
+                errors.push(`드레스 업체 로드 실패: ${errorMsg}`);
             }
             
             try {
+                console.log('[Home] Fetching makeup vendors...');
                 const makeupVendors = await fetchMakeupVendors();
                 allVendors.push(...makeupVendors);
-                console.log(`Loaded ${makeupVendors.length} makeup vendors`);
+                console.log(`[Home] ✅ Loaded ${makeupVendors.length} makeup vendors`);
             } catch (error) {
-                console.error('Failed to load makeup vendors:', error);
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                console.error('[Home] ❌ Failed to load makeup vendors:', errorMsg);
+                errors.push(`메이크업 업체 로드 실패: ${errorMsg}`);
+            }
+            
+            // 에러가 있으면 콘솔에 출력
+            if (errors.length > 0) {
+                console.warn('[Home] ⚠️ 일부 업체 정보를 불러오지 못했습니다:', errors);
             }
             
             // 중복 제거: 같은 category와 id를 가진 vendor 제거
@@ -63,10 +78,13 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, onVendorClick, onN
             }, new Map<string, Vendor>());
             
             const finalVendors = Array.from(uniqueVendors.values());
-            console.log(`Total loaded: ${finalVendors.length} unique vendors (${allVendors.length} before deduplication)`);
-            console.log('Studio count:', finalVendors.filter(v => v.category === VendorCategory.STUDIO).length);
-            console.log('Dress count:', finalVendors.filter(v => v.category === VendorCategory.DRESS).length);
-            console.log('Makeup count:', finalVendors.filter(v => v.category === VendorCategory.MAKEUP).length);
+            console.log(`[Home] 📊 Total loaded: ${finalVendors.length} unique vendors (${allVendors.length} before deduplication)`);
+            console.log('[Home] 📊 Breakdown:', {
+                studios: finalVendors.filter(v => v.category === VendorCategory.STUDIO).length,
+                dresses: finalVendors.filter(v => v.category === VendorCategory.DRESS).length,
+                makeup: finalVendors.filter(v => v.category === VendorCategory.MAKEUP).length
+            });
+            
             setVendors(finalVendors);
             setLoading(false);
         };
