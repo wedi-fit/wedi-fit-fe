@@ -15,8 +15,8 @@ export default defineConfig(({ mode }) => {
         name: 'html-transform',
         transformIndexHtml(html) {
           return html.replace(
-            /%VITE_KAKAO_MAP_API_KEY%/g,
-            env.VITE_KAKAO_MAP_API_KEY || ''
+            /%VITE_KAKAO_MAP_APP_KEY%/g,
+            env.VITE_KAKAO_MAP_APP_KEY || ''
           );
         },
       },
