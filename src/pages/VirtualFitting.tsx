@@ -1,7 +1,8 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Sparkles, User, Camera, CheckCircle, ArrowRight, Wand2, ShoppingBag, X, ArrowLeft } from 'lucide-react';
 import { analyzeBodyType } from '../services/geminiService';
+import { fetchRecommendedDresses, getDressImageUrl, Dress } from '../services/dressService';
 import { MoodTestResult } from '../types';
 
 interface VirtualFittingProps {
@@ -27,7 +28,9 @@ export const VirtualFitting: React.FC<VirtualFittingProps> = ({ moodResult }) =>
     const [analysisResult, setAnalysisResult] = useState<any>(null);
     
     // Dress Selection State
-    const [selectedDressIds, setSelectedDressIds] = useState<number[]>([]);
+    const [selectedDressIds, setSelectedDressIds] = useState<string[]>([]);
+    const [recommendedDresses, setRecommendedDresses] = useState<Dress[]>([]);
+    const [isLoadingDresses, setIsLoadingDresses] = useState(false);
 
     // Handlers
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,7 +66,7 @@ export const VirtualFitting: React.FC<VirtualFittingProps> = ({ moodResult }) =>
         setStep('RESULT');
     };
 
-    const toggleDressSelection = (id: number) => {
+    const toggleDressSelection = (id: string) => {
         if (selectedDressIds.includes(id)) {
             setSelectedDressIds(prev => prev.filter(did => did !== id));
         } else {
@@ -72,6 +75,23 @@ export const VirtualFitting: React.FC<VirtualFittingProps> = ({ moodResult }) =>
             }
         }
     };
+
+    // RESULT 단계에서 추천 드레스 목록 로드
+    useEffect(() => {
+        if (step === 'RESULT' && recommendedDresses.length === 0 && !isLoadingDresses) {
+            setIsLoadingDresses(true);
+            fetchRecommendedDresses()
+                .then(dresses => {
+                    setRecommendedDresses(dresses);
+                })
+                .catch(error => {
+                    console.error('Failed to load recommended dresses:', error);
+                })
+                .finally(() => {
+                    setIsLoadingDresses(false);
+                });
+        }
+    }, [step, recommendedDresses.length, isLoadingDresses]);
 
     // --- Views ---
 
@@ -301,37 +321,56 @@ export const VirtualFitting: React.FC<VirtualFittingProps> = ({ moodResult }) =>
                         </h3>
                         
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                             {[1,2,3,4,5,6,7,8,9].map(i => {
-                                const isSelected = selectedDressIds.includes(i);
-                                return (
-                                    <div 
-                                        key={i} 
-                                        onClick={() => toggleDressSelection(i)}
-                                        className={`group relative bg-white rounded-xl overflow-hidden shadow-sm cursor-pointer transition-all duration-200
-                                            ${isSelected ? 'ring-4 ring-emerald-500 transform scale-[1.02] z-10' : 'hover:shadow-xl hover:-translate-y-1'}`}
-                                    >
-                                        <div className="aspect-[3/4] overflow-hidden relative">
-                                            <img 
-                                                src={`https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=500&q=80`} 
-                                                alt="Dress" 
-                                                className="w-full h-full object-cover transition duration-700 group-hover:scale-110"
-                                            />
-                                            {/* Match Badge */}
-                                            <div className="absolute top-2 left-2 bg-black/60 backdrop-blur px-2 py-1 rounded text-[10px] font-bold text-white">
-                                                {95 - i}% Match
+                            {isLoadingDresses ? (
+                                <div className="col-span-full text-center py-12">
+                                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mb-4"></div>
+                                    <p className="text-stone-500">추천 드레스를 불러오는 중...</p>
+                                </div>
+                            ) : recommendedDresses.length === 0 ? (
+                                <div className="col-span-full text-center py-12">
+                                    <p className="text-stone-500">추천 드레스를 찾을 수 없습니다.</p>
+                                </div>
+                            ) : (
+                                recommendedDresses.map((dress) => {
+                                    const isSelected = selectedDressIds.includes(dress.id);
+                                    return (
+                                        <div 
+                                            key={dress.id} 
+                                            onClick={() => toggleDressSelection(dress.id)}
+                                            className={`group relative bg-white rounded-xl overflow-hidden shadow-sm cursor-pointer transition-all duration-200
+                                                ${isSelected ? 'ring-4 ring-emerald-500 transform scale-[1.02] z-10' : 'hover:shadow-xl hover:-translate-y-1'}`}
+                                        >
+                                            <div className="aspect-[3/4] overflow-hidden relative">
+                                                <img 
+                                                    src={getDressImageUrl(dress.imageUrl)} 
+                                                    alt={dress.name} 
+                                                    className="w-full h-full object-cover transition duration-700 group-hover:scale-110"
+                                                    onError={(e) => {
+                                                        // 이미지 로드 실패 시 기본 이미지 사용
+                                                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=500&q=80';
+                                                    }}
+                                                />
+                                                {/* Style Badge */}
+                                                {dress.style && (
+                                                    <div className="absolute top-2 left-2 bg-black/60 backdrop-blur px-2 py-1 rounded text-[10px] font-bold text-white">
+                                                        {dress.style}
+                                                    </div>
+                                                )}
+                                                {/* Selection Overlay */}
+                                                <div className={`absolute inset-0 bg-emerald-900/40 flex items-center justify-center transition-opacity duration-200 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-10'}`}>
+                                                    {isSelected && <CheckCircle size={48} className="text-white drop-shadow-lg" />}
+                                                </div>
                                             </div>
-                                            {/* Selection Overlay */}
-                                            <div className={`absolute inset-0 bg-emerald-900/40 flex items-center justify-center transition-opacity duration-200 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-10'}`}>
-                                                {isSelected && <CheckCircle size={48} className="text-white drop-shadow-lg" />}
+                                            <div className={`p-3 ${isSelected ? 'bg-emerald-50' : 'bg-white'}`}>
+                                                <h4 className="font-bold text-stone-800 text-sm truncate">{dress.name}</h4>
+                                                {dress.style && (
+                                                    <p className="text-xs text-stone-500">{dress.style}</p>
+                                                )}
                                             </div>
                                         </div>
-                                        <div className={`p-3 ${isSelected ? 'bg-emerald-50' : 'bg-white'}`}>
-                                            <h4 className="font-bold text-stone-800 text-sm truncate">Silk Mermaid Line {i}</h4>
-                                            <p className="text-xs text-stone-500">Grace Kelly Bride</p>
-                                        </div>
-                                    </div>
-                                );
-                             })}
+                                    );
+                                })
+                            )}
                         </div>
                     </div>
                 </div>
@@ -360,18 +399,32 @@ export const VirtualFitting: React.FC<VirtualFittingProps> = ({ moodResult }) =>
                             
                             {/* Mock Result Display */}
                             <div className="grid grid-cols-2 gap-4 max-w-lg mx-auto">
-                                {selectedDressIds.slice(0, 2).map((id) => (
-                                    <div key={id} className="aspect-[3/4] bg-stone-800 rounded-xl overflow-hidden relative border border-stone-700 group">
-                                         <img 
-                                            src={`https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=500&q=80`} 
-                                            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition"
-                                            alt="Fitting Result"
-                                        />
-                                        <div className="absolute bottom-0 left-0 w-full bg-black/60 p-2 text-center text-white text-xs">
-                                            Fitting #{id}
+                                {selectedDressIds.slice(0, 2).map((id) => {
+                                    const dress = recommendedDresses.find(d => d.id === id);
+                                    return (
+                                        <div key={id} className="aspect-[3/4] bg-stone-800 rounded-xl overflow-hidden relative border border-stone-700 group">
+                                            {dress ? (
+                                                <img 
+                                                    src={getDressImageUrl(dress.imageUrl)} 
+                                                    className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition"
+                                                    alt={dress.name}
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=500&q=80';
+                                                    }}
+                                                />
+                                            ) : (
+                                                <img 
+                                                    src={`https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=500&q=80`} 
+                                                    className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition"
+                                                    alt="Fitting Result"
+                                                />
+                                            )}
+                                            <div className="absolute bottom-0 left-0 w-full bg-black/60 p-2 text-center text-white text-xs">
+                                                {dress ? dress.name : `Dress #${id}`}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
@@ -380,20 +433,34 @@ export const VirtualFitting: React.FC<VirtualFittingProps> = ({ moodResult }) =>
                     <div className="bg-white p-6 rounded-2xl border border-stone-200 h-fit">
                         <h3 className="font-bold text-stone-800 mb-6">피팅 리스트 ({selectedDressIds.length})</h3>
                         <div className="space-y-4 mb-8">
-                            {selectedDressIds.map(id => (
-                                <div key={id} className="flex items-center justify-between p-3 border border-stone-100 rounded-lg bg-stone-50">
-                                    <div className="flex items-center space-x-3">
-                                        <div className="w-10 h-10 bg-stone-200 rounded-md overflow-hidden">
-                                             <img src="https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=100&q=80" className="w-full h-full object-cover"/>
+                            {selectedDressIds.map(id => {
+                                const dress = recommendedDresses.find(d => d.id === id);
+                                return (
+                                    <div key={id} className="flex items-center justify-between p-3 border border-stone-100 rounded-lg bg-stone-50">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="w-10 h-10 bg-stone-200 rounded-md overflow-hidden">
+                                                {dress ? (
+                                                    <img 
+                                                        src={getDressImageUrl(dress.imageUrl)} 
+                                                        alt={dress.name}
+                                                        className="w-full h-full object-cover"
+                                                        onError={(e) => {
+                                                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=100&q=80';
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <img src="https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=100&q=80" className="w-full h-full object-cover"/>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-bold text-stone-800">{dress ? dress.name : `Dress #${id}`}</div>
+                                                <div className="text-xs text-stone-500">Generating...</div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <div className="text-sm font-bold text-stone-800">Dress #{id}</div>
-                                            <div className="text-xs text-stone-500">Generating...</div>
-                                        </div>
+                                        <CheckCircle size={16} className="text-emerald-500" />
                                     </div>
-                                    <CheckCircle size={16} className="text-emerald-500" />
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                         <button className="w-full border border-stone-300 text-stone-600 py-3 rounded-xl font-bold hover:bg-stone-50 transition">
                             이미지 전체 다운로드
