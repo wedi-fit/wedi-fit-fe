@@ -27,14 +27,14 @@ export const Header: React.FC<HeaderProps> = ({ user, onNavigate, onLoginToggle 
                             className="flex items-center space-x-2 text-stone-600 hover:text-emerald-700 transition"
                         >
                             <Heart size={18} />
-                            <span className="font-medium">WBTI - 나의 웨딩 환경 파악하기</span>
+                            <span className="font-medium">WBTI - 웨딩 성향 테스트</span>
                         </button>
                         <button 
                             onClick={() => onNavigate('VIRTUAL_FITTING')}
                             className="flex items-center space-x-2 text-stone-600 hover:text-emerald-700 transition"
                         >
                             <Shirt size={18} />
-                            <span className="font-medium">AI Fitting</span>
+                            <span className="font-medium">AI 가상 피팅</span>
                         </button>
                         
                         {user.isLoggedIn ? (
