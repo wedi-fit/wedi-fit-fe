@@ -1,7 +1,0 @@
-services:
-  web:
-    build: .
-    container_name: wedi-fit-web
-    restart: unless-stopped
-    ports: ["8081:8080"]
-

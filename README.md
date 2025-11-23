@@ -1,195 +1,101 @@
-# WediFit Frontend - 웨딩드레스 시착 서비스 프론트엔드
+# WediFit - AI Wedding Planner
 
-WediFit 프론트엔드는 React와 TypeScript로 구성된 웨딩드레스 AI 시착 서비스의 클라이언트 애플리케이션입니다.
+웨딩 준비를 위한 AI 기반 웨딩 플래너 애플리케이션입니다.
 
-## 🏗️ 프로젝트 구조
+## 주요 기능
 
-```
-wedi-fit-fe/
-├── src/
-│   ├── components/         # React 컴포넌트
-│   │   ├── DressSelector.tsx
-│   │   ├── ImageUploader.tsx
-│   │   ├── ResultGallery.tsx
-│   │   └── ui/            # shadcn/ui 컴포넌트
-│   ├── App.tsx            # 메인 애플리케이션
-│   ├── main.tsx           # 진입점
-│   └── styles/            # 스타일 파일
-├── dist/                   # 빌드 결과물
-├── Dockerfile
-├── package.json
-├── vite.config.ts
-├── tailwind.config.js
-└── README.md
-```
+- **랜딩 페이지**: 서비스 소개 및 시작
+- **홈**: 추천 업체 및 무드 테스트 결과 표시
+- **무드 테스트**: AI 기반 웨딩 스타일 테스트
+- **가상 피팅**: 웨딩드레스 가상 피팅
+- **일정 관리**: 웨딩 준비 일정 및 체크리스트
+- **계약서**: 업체별 계약서 관리
+- **채팅**: AI 웨딩 플래너 챗봇
 
-## 🚀 빠른 시작
+## 기술 스택
 
-### 1. 의존성 설치
+- **Frontend**: React 19.2, TypeScript
+- **Build Tool**: Vite 6.2
+- **Styling**: Tailwind CSS 4.1
+- **Icons**: Lucide React
+- **AI**: Google Gemini API
+
+## 시작하기
+
+### 필수 조건
+
+- Node.js (v18 이상)
+- npm 또는 yarn
+
+### 설치
 
 ```bash
+# 의존성 설치
 npm install
 ```
 
-### 2. 개발 서버 실행
+### 환경 변수 설정
+
+`.env.local` 파일에 Gemini API 키를 설정하세요:
+
+```
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+### 개발 서버 실행
 
 ```bash
 npm run dev
 ```
 
-개발 서버는 기본적으로 `http://localhost:5174`에서 실행됩니다.
+개발 서버는 `http://localhost:3000`에서 실행됩니다.
 
-**중요**: 백엔드 서버(`wedi-fit-be`)가 `http://localhost:3001`에서 실행 중이어야 합니다.
-
-### 3. 프로덕션 빌드
+### 빌드
 
 ```bash
 npm run build
 ```
 
-빌드 결과물은 `dist/` 폴더에 생성됩니다.
+빌드된 파일은 `dist` 폴더에 생성됩니다.
 
-## 🐳 Docker로 실행
-
-### Docker Compose 사용
+### 프리뷰
 
 ```bash
-# 컨테이너 빌드 및 실행
-docker-compose up -d
-
-# 로그 확인
-docker-compose logs -f web
+npm run preview
 ```
 
-웹 애플리케이션은 `http://localhost:8081`에서 접근 가능합니다.
+## 배포
 
-### Docker 직접 실행
+이 프로젝트는 Netlify에 배포되도록 구성되어 있습니다.
 
-```bash
-# 이미지 빌드
-docker build -t wedi-fit-web .
+### Netlify 배포 설정
 
-# 컨테이너 실행
-docker run -p 8081:8080 wedi-fit-web
+1. Netlify에 로그인
+2. 새 사이트 추가 (GitHub 저장소 연결)
+3. 빌드 설정:
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+4. 환경 변수 설정:
+   - `GEMINI_API_KEY`: Gemini API 키
+
+## 프로젝트 구조
+
+```
+wedi-fit-fe/
+├── src/
+│   ├── components/     # React 컴포넌트
+│   ├── pages/          # 페이지 컴포넌트
+│   ├── services/       # API 서비스
+│   ├── App.tsx         # 메인 앱 컴포넌트
+│   ├── main.tsx        # 엔트리 포인트
+│   ├── types.ts        # TypeScript 타입 정의
+│   ├── constants.ts    # 상수 및 목업 데이터
+│   └── index.css       # 글로벌 스타일
+├── public/             # 정적 파일
+├── dist/               # 빌드 결과물
+└── index.html          # HTML 템플릿
 ```
 
-## ⚙️ 환경 설정
+## 라이선스
 
-### 백엔드 연결 설정
-
-프론트엔드는 `wedi-fit-be` 백엔드 서버와 통신합니다. 백엔드 서버가 실행 중이어야 합니다.
-
-**백엔드 서버 실행 방법:**
-```bash
-cd ../wedi-fit-be
-docker-compose up -d
-```
-
-### API URL 설정
-
-백엔드 API URL은 환경 변수로 설정할 수 있습니다:
-
-**1. `.env` 파일 생성** (프로젝트 루트에)
-```bash
-VITE_API_URL=http://localhost:3001
-```
-
-**2. 환경별 설정**
-- **개발 환경**: `http://localhost:3001` (기본값)
-- **프로덕션 환경**: 실제 백엔드 서버 URL
-
-**참고**: 환경 변수가 설정되지 않은 경우 기본값(`http://localhost:3001`)이 사용됩니다.
-
-### Vite 프록시 설정
-
-개발 서버에서 `/api`로 시작하는 요청은 자동으로 백엔드로 프록시됩니다.
-`vite.config.ts`에서 프록시 설정을 확인할 수 있습니다.
-
-## 🛠️ 기술 스택
-
-- **프레임워크**: React 18
-- **언어**: TypeScript
-- **빌드 도구**: Vite
-- **스타일링**: Tailwind CSS
-- **UI 컴포넌트**: shadcn/ui
-- **이미지 처리**: HTML5 Canvas API
-
-## 📦 주요 기능
-
-- 사용자 사진 업로드
-- 웨딩드레스 선택 (다중 선택 지원)
-- AI 이미지 합성 요청
-- 합성 결과 갤러리 표시
-- 반응형 디자인
-
-## 🔧 개발
-
-### 개발 모드
-
-```bash
-npm run dev
-```
-
-### 타입 체크
-
-```bash
-npm run type-check
-```
-
-### 린트
-
-```bash
-npm run lint
-```
-
-## 📝 스크립트
-
-- `npm run dev` - 개발 서버 실행
-- `npm run build` - 프로덕션 빌드
-- `npm run preview` - 빌드 결과물 미리보기
-- `npm run lint` - ESLint 실행
-
-## 🌐 접속 정보
-
-- **프론트엔드 (로컬 개발)**: http://localhost:5174
-- **프론트엔드 (Docker)**: http://localhost:8081
-- **백엔드 API**: http://localhost:3001
-- **백엔드 API 문서**: http://localhost:3001/docs
-
-## 🚀 Netlify 배포
-
-### 빠른 배포 가이드
-
-자세한 배포 가이드는 [NETLIFY_DEPLOYMENT_GUIDE.md](./NETLIFY_DEPLOYMENT_GUIDE.md)를 참조하세요.
-
-**주요 단계:**
-
-1. **Netlify에 프로젝트 연결**
-   - Netlify 대시보드에서 Git 저장소 연결
-   - 빌드 설정: `npm run build`
-   - 출력 디렉토리: `dist`
-
-2. **환경 변수 설정 (백엔드 연결)**
-   ```
-   VITE_API_URL=https://api.wedifit.me
-   ```
-   **참고**: 백엔드가 Cloudflare Tunnel, VPS, 또는 다른 서비스에 배포되어도 상관없습니다. 
-   프론트엔드에서 접근 가능한 백엔드 URL만 설정하면 됩니다.
-   자세한 내용은 [백엔드 배포 옵션 가이드](./BACKEND_DEPLOYMENT_OPTIONS.md)를 참조하세요.
-
-3. **도메인 연결**
-   - `wedifit.me` 도메인 추가
-   - DNS 설정 완료
-   - **가비아 사용 시**: [가비아 DNS 설정 가이드](./GABIA_DNS_SETUP_GUIDE.md) 참조
-
-### 배포 전 확인사항
-
-- [ ] `npm run build`가 로컬에서 성공적으로 실행됨
-- [ ] 환경 변수 `VITE_API_URL`이 설정됨
-- [ ] 백엔드 서버가 실행 중이고 CORS 설정 완료됨
-- [ ] `netlify.toml` 파일이 프로젝트 루트에 있음
-
-## 📚 관련 프로젝트
-
-- **백엔드**: [wedi-fit-be](../wedi-fit-be/) - FastAPI 백엔드 서버
-
+이 프로젝트는 비공개 프로젝트입니다.
