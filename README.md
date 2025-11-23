@@ -34,13 +34,15 @@
 npm install
 ```
 
-### 환경 변수 설정
+### 환경 변수 설정 (선택사항)
 
-`.env.local` 파일에 Gemini API 키를 설정하세요:
+`.env.local` 파일에 Gemini API 키를 설정할 수 있습니다:
 
 ```
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
+
+**참고**: API 키가 없어도 애플리케이션은 정상적으로 작동합니다. API 키가 설정되지 않은 경우, 무드 테스트 및 가상 피팅 기능은 자동으로 더미 데이터를 사용합니다.
 
 ### 개발 서버 실행
 
@@ -75,8 +77,8 @@ npm run preview
 3. 빌드 설정:
    - Build command: `npm run build`
    - Publish directory: `dist`
-4. 환경 변수 설정:
-   - `GEMINI_API_KEY`: Gemini API 키
+4. 환경 변수 설정 (선택사항):
+   - `GEMINI_API_KEY`: Gemini API 키 (설정하지 않아도 더미 데이터로 작동합니다)
 
 ## 프로젝트 구조
 
