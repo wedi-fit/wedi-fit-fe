@@ -2,7 +2,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, MapPin, Phone, CheckCircle } from 'lucide-react';
 import { Vendor, CartItem, PageView, VendorCategory } from '../types';
-import { formatPrice } from '../utils/priceFormatter';
+import { formatPrice, formatPriceInText, parseOtherOptions } from '../utils/priceFormatter';
+import { KakaoMap } from './KakaoMap';
+import { fetchMakeupVendorDetails, MakeupProduct } from '../services/makeupService';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -22,6 +24,7 @@ export const VendorModal: React.FC<VendorModalProps> = ({
     const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
     const [instagramPosts, setInstagramPosts] = useState<string[]>([]);
     const [instagramLoading, setInstagramLoading] = useState<boolean>(false);
+    const [makeupProducts, setMakeupProducts] = useState<MakeupProduct[]>([]);
     const instagramContainerRef = useRef<HTMLDivElement>(null);
 
     // Sync local state with global cart when modal opens
@@ -172,6 +175,25 @@ export const VendorModal: React.FC<VendorModalProps> = ({
         }
     }, [instagramPosts, isOpen]);
 
+    // Load makeup products when vendor is makeup category
+    useEffect(() => {
+        if (vendor && vendor.category === VendorCategory.MAKEUP && isOpen) {
+            const loadMakeupDetails = async () => {
+                try {
+                    const products = await fetchMakeupVendorDetails(vendor.name);
+                    setMakeupProducts(products);
+                } catch (error) {
+                    console.error('Error loading makeup details:', error);
+                    setMakeupProducts([]);
+                }
+            };
+
+            loadMakeupDetails();
+        } else {
+            setMakeupProducts([]);
+        }
+    }, [vendor, isOpen]);
+
     // 기본 가격 포맷팅
     const basePriceFormatted = useMemo(() => {
         if (!vendor) return '';
@@ -215,6 +237,11 @@ export const VendorModal: React.FC<VendorModalProps> = ({
 
                 {/* Content Scrollable */}
                 <div className="flex-1 overflow-y-auto p-6 bg-stone-50">
+                    {/* 지도 섹션 - Studio 카테고리일 때만 표시 */}
+                    {vendor.category === VendorCategory.STUDIO && vendor.location && (
+                        <KakaoMap location={vendor.location} businessName={vendor.name} />
+                    )}
+
                     {/* 기본가격 섹션 */}
                     {vendor.basePrice && (
                         <div className="bg-white p-6 rounded-xl border border-stone-100 shadow-sm mb-4">
@@ -260,14 +287,54 @@ export const VendorModal: React.FC<VendorModalProps> = ({
                     {vendor.otherOptions.length > 0 && (
                         <div className="bg-white p-6 rounded-xl border border-stone-100 shadow-sm mb-4">
                             <h3 className="font-bold text-stone-800 text-lg mb-4">기타 옵션</h3>
-                            <ul className="space-y-2">
+                            <div className="space-y-3">
                                 {vendor.otherOptions.map((option, index) => (
-                                    <li key={index} className="flex items-start">
-                                        <span className="text-emerald-600 mr-2">•</span>
-                                        <span className="text-stone-700">{option}</span>
-                                    </li>
+                                    <div key={index} className="flex items-center justify-between p-4 rounded-lg border border-stone-200 bg-stone-50">
+                                        <span className="font-medium text-stone-700">{option}</span>
+                                    </div>
                                 ))}
-                            </ul>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 메이크업 카테고리 전용 섹션 */}
+                    {vendor.category === VendorCategory.MAKEUP && makeupProducts.length > 0 && (
+                        <div className="bg-white p-6 rounded-xl border border-stone-100 shadow-sm mb-4">
+                            <h3 className="font-bold text-stone-800 text-lg mb-4">상품구성</h3>
+                            <div className="space-y-6">
+                                {makeupProducts.map((product) => (
+                                    <div key={product.id} className="border border-stone-200 rounded-lg p-4 bg-stone-50">
+                                        <h4 className="font-semibold text-stone-800 mb-3">{product.product_composition}</h4>
+                                        <div className="space-y-2">
+                                            {/* 기본가 */}
+                                            {product.base_price && (
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-stone-600">기본가</span>
+                                                    <span className="text-stone-800 font-bold">{formatPriceInText(product.base_price)}</span>
+                                                </div>
+                                            )}
+                                            {/* 지정비 */}
+                                            {product.designated_fee && (
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-stone-600">지정비</span>
+                                                    <span className="text-stone-800 font-bold">{formatPriceInText(product.designated_fee)}</span>
+                                                </div>
+                                            )}
+                                            {/* 기타옵션 */}
+                                            {product.other_options.length > 0 && (
+                                                <div className="space-y-2">
+                                                    {product.other_options.map((option, index) => (
+                                                        <div key={index} className="flex items-center justify-between">
+                                                            <span className="text-stone-600">{option}</span>
+                                                            <span className="text-stone-800 font-bold">{formatPriceInText(option)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 

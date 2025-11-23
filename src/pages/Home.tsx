@@ -1,8 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MapPin, SlidersHorizontal, Sparkles, ArrowRight } from 'lucide-react';
 import { Vendor, UserState, MoodTestResult, PageView, VendorCategory } from '../types';
 import { fetchStudios } from '../services/studioService';
+import { fetchDressVendors } from '../services/dressService';
+import { fetchMakeupVendors } from '../services/makeupService';
 import { formatMinPrice } from '../utils/priceFormatter';
 
 interface HomeProps {
@@ -24,51 +26,89 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, onVendorClick, onN
     useEffect(() => {
         const loadVendors = async () => {
             setLoading(true);
+            const allVendors: Vendor[] = [];
+            
+            // 스튜디오, 드레스, 메이크업 업체를 독립적으로 조회 (하나가 실패해도 다른 것은 로드)
             try {
-                // 현재는 스튜디오만 조회 (드레스, 메이크업은 추후 추가)
                 const studios = await fetchStudios();
-                setVendors(studios);
+                allVendors.push(...studios);
+                console.log(`Loaded ${studios.length} studios`);
             } catch (error) {
-                console.error('Failed to load vendors:', error);
-            } finally {
-                setLoading(false);
+                console.error('Failed to load studios:', error);
             }
+            
+            try {
+                const dressVendors = await fetchDressVendors();
+                allVendors.push(...dressVendors);
+                console.log(`Loaded ${dressVendors.length} dress vendors`);
+            } catch (error) {
+                console.error('Failed to load dress vendors:', error);
+            }
+            
+            try {
+                const makeupVendors = await fetchMakeupVendors();
+                allVendors.push(...makeupVendors);
+                console.log(`Loaded ${makeupVendors.length} makeup vendors`);
+            } catch (error) {
+                console.error('Failed to load makeup vendors:', error);
+            }
+            
+            // 중복 제거: 같은 category와 id를 가진 vendor 제거
+            const uniqueVendors = allVendors.reduce((acc, vendor) => {
+                const key = `${vendor.category}-${vendor.id}`;
+                if (!acc.has(key)) {
+                    acc.set(key, vendor);
+                }
+                return acc;
+            }, new Map<string, Vendor>());
+            
+            const finalVendors = Array.from(uniqueVendors.values());
+            console.log(`Total loaded: ${finalVendors.length} unique vendors (${allVendors.length} before deduplication)`);
+            console.log('Studio count:', finalVendors.filter(v => v.category === VendorCategory.STUDIO).length);
+            console.log('Dress count:', finalVendors.filter(v => v.category === VendorCategory.DRESS).length);
+            console.log('Makeup count:', finalVendors.filter(v => v.category === VendorCategory.MAKEUP).length);
+            setVendors(finalVendors);
+            setLoading(false);
         };
 
         loadVendors();
     }, []);
 
-    // Sort logic
-    const getSortedVendors = () => {
-        let sorted = [...vendors];
+    // Sort logic with filtering
+    const displayVendors = useMemo(() => {
+        let filtered = [...vendors];
 
-        // Filter Category
+        // Filter Category - ALL일 때는 필터링하지 않음
         if (activeCategory !== 'ALL') {
-            sorted = sorted.filter(v => v.category === activeCategory);
+            filtered = filtered.filter(v => v.category === activeCategory);
         }
 
         // Sort
+        let sorted = [...filtered];
         switch (sortType) {
             case 'PRICE_ASC':
-                return sorted.sort((a, b) => {
+                sorted.sort((a, b) => {
                     const priceA = parseInt(a.basePrice.split('~')[0]) || 0;
                     const priceB = parseInt(b.basePrice.split('~')[0]) || 0;
                     return priceA - priceB;
                 });
+                break;
             case 'PRICE_DESC':
-                return sorted.sort((a, b) => {
+                sorted.sort((a, b) => {
                     const priceA = parseInt(a.basePrice.split('~')[0]) || 0;
                     const priceB = parseInt(b.basePrice.split('~')[0]) || 0;
                     return priceB - priceA;
                 });
+                break;
             case 'POPULARITY':
             default:
                 // 인기순은 임시로 이름순으로 정렬 (평점 제거됨)
-                return sorted.sort((a, b) => a.name.localeCompare(b.name));
+                sorted.sort((a, b) => a.name.localeCompare(b.name));
+                break;
         }
-    };
-
-    const displayVendors = getSortedVendors();
+        
+        return sorted;
+    }, [vendors, activeCategory, sortType]);
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
@@ -93,7 +133,7 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, onVendorClick, onN
                                 <strong> {moodResult.recommendedDressStyle}</strong> 디자인을 엄선했습니다.
                             </p>
                             <button 
-                                onClick={() => setActiveCategory('STUDIO')} 
+                                onClick={() => setActiveCategory(VendorCategory.STUDIO)} 
                                 className="bg-white text-emerald-900 px-6 py-2.5 rounded-full font-bold text-sm hover:bg-emerald-50 transition"
                             >
                                 추천 컬렉션 보기
@@ -108,7 +148,7 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, onVendorClick, onN
                                 내 결혼식, 어디서부터 시작할까요?
                             </h2>
                             <p className="text-stone-600 mb-8 text-lg">
-                                나만의 "결BTI"를 알아보세요. <br/>
+                                나만의 "WBTI"를 알아보세요. <br/>
                                 AI가 내 취향과 체형, 예산에 딱 맞는 스드메 업체를 추천해드립니다.
                             </p>
                             <button 
@@ -128,7 +168,7 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, onVendorClick, onN
                 
                 {/* Category Pills */}
                 <div className="flex space-x-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
-                    {['ALL', 'Studio', 'Dress', 'Makeup'].map(cat => (
+                    {['ALL', VendorCategory.STUDIO, VendorCategory.DRESS, VendorCategory.MAKEUP].map(cat => (
                         <button
                             key={cat}
                             onClick={() => setActiveCategory(cat)}
@@ -174,7 +214,7 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, onVendorClick, onN
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                     {displayVendors.map(vendor => (
                         <div
-                            key={vendor.id}
+                            key={`${vendor.category}-${vendor.id}`}
                             onClick={() => onVendorClick(vendor)}
                             className="group bg-white rounded-xl overflow-hidden border border-stone-100 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
                         >

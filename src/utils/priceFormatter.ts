@@ -55,9 +55,13 @@ export function formatMinPrice(priceStr: string | null | undefined): string {
  * 단일 가격 문자열을 숫자로 변환하여 포맷팅
  * "130" -> "1,300,000"
  * "11" -> "110,000"
+ * "1.3" -> "13,000" (소수점 포함)
+ * "5.5" -> "55,000"
+ * "10" -> "100,000"
  */
 function formatSinglePrice(priceStr: string): string {
-    const price = parseInt(priceStr, 10);
+    // 소수점이 있는 경우와 없는 경우 모두 처리
+    const price = parseFloat(priceStr);
 
     if (isNaN(price)) {
         return '';
@@ -101,4 +105,67 @@ export function parseOtherOptions(optionsStr: string | null | undefined): string
         .split(';')
         .map(opt => opt.trim())
         .filter(opt => opt.length > 0);
+}
+
+/**
+ * base_price 문자열에서 모든 숫자를 추출하여 가장 작은 숫자를 반환
+ * 2-3자리 숫자를 찾아서 최소값을 반환
+ *
+ * 예시:
+ * - "본식 250~280;촬영 190~250;촬영+본식 280~370" -> "190"
+ * - "250~280" -> "250"
+ * - "190" -> "190"
+ */
+export function extractMinPriceFromBasePrice(basePrice: string | null | undefined): string {
+    if (!basePrice || basePrice.trim() === '') {
+        return '0';
+    }
+
+    // 2-3자리 숫자를 모두 찾기 (정규표현식: \d{2,3})
+    const numbers = basePrice.match(/\d{2,3}/g);
+    
+    if (!numbers || numbers.length === 0) {
+        return '0';
+    }
+
+    // 숫자 배열을 숫자로 변환하여 최소값 찾기
+    const minNumber = Math.min(...numbers.map(num => parseInt(num, 10)));
+    
+    return minNumber.toString();
+}
+
+/**
+ * 가격 문자열에서 숫자를 찾아서 포맷팅된 가격으로 변환
+ * 텍스트와 숫자가 섞여있는 경우 숫자만 포맷팅
+ * 소수점 포함 숫자도 처리 (예: "1.3", "5.5")
+ *
+ * 예시:
+ * - "25" -> "250,000 원"
+ * - "100" -> "1,000,000 원"
+ * - "1.3" -> "13,000 원"
+ * - "5.5" -> "55,000 원"
+ * - "10" -> "100,000 원"
+ * - "본식 250~280" -> "본식 2,500,000~2,800,000 원"
+ * - "추가비용 50" -> "추가비용 500,000 원"
+ */
+export function formatPriceInText(text: string | null | undefined): string {
+    if (!text || text.trim() === '') {
+        return '';
+    }
+
+    // 숫자 패턴 찾기 (소수점 포함, 1-4자리 숫자, 범위 포함)
+    // 예: "1.3", "5.5", "10", "250~280"
+    const pricePattern = /(\d+\.?\d*)(?:~(\d+\.?\d*))?/g;
+    
+    return text.replace(pricePattern, (match, minPrice, maxPrice) => {
+        const formattedMin = formatSinglePrice(minPrice);
+        if (!formattedMin) return match; // 포맷팅 실패 시 원본 반환
+        
+        if (maxPrice) {
+            const formattedMax = formatSinglePrice(maxPrice);
+            if (!formattedMax) return match;
+            return `${formattedMin}~${formattedMax} 원`;
+        }
+        return `${formattedMin} 원`;
+    });
 }

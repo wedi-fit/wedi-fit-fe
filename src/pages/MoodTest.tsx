@@ -7,15 +7,24 @@ import { MOCK_VENDORS } from '../constants';
 
 // --- Quiz Data & Options ---
 
+import naturalGarden from '../assets/images/natural_garden.jpeg';
+import classicHotel from '../assets/images/classic_hotel.jpeg';
+import minimalModern from '../assets/images/minimal_modern.jpeg';
+import romanticElegance from '../assets/images/romantic_elegance.jpeg';
+import vintageRetro from '../assets/images/vintage_retro.jpeg';
+import trendySns from '../assets/images/trendy_snssensitivity.jpeg';
+import dramaticCinematic from '../assets/images/dramatic_cinematic.jpeg';
+import casual from '../assets/images/casual.jpeg';
+
 const MOOD_IMAGES = [
-    { id: 'garden', name: '야외 가든 웨딩', src: 'https://images.unsplash.com/photo-1519225421980-715cb0202128?auto=format&fit=crop&w=400&q=80' },
-    { id: 'chapel', name: '경건한 채플', src: 'https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=400&q=80' },
-    { id: 'hotel', name: '럭셔리 호텔', src: 'https://images.unsplash.com/photo-1522673607200-1645062cd958?auto=format&fit=crop&w=400&q=80' },
-    { id: 'house', name: '프라이빗 하우스', src: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=400&q=80' },
-    { id: 'minimal', name: '모던 미니멀', src: 'https://images.unsplash.com/photo-1511285560982-1356c11d4606?auto=format&fit=crop&w=400&q=80' },
-    { id: 'vintage', name: '빈티지/레트로', src: 'https://images.unsplash.com/photo-1515488764276-beab7607c1e6?auto=format&fit=crop&w=400&q=80' },
-    { id: 'bright', name: '화사한 로맨틱', src: 'https://images.unsplash.com/photo-1525772764200-be829a350797?auto=format&fit=crop&w=400&q=80' },
-    { id: 'night', name: '나이트/파티', src: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=400&q=80' },
+    { id: 'natural_garden', name: '내추럴/가든', src: naturalGarden },
+    { id: 'classic_hotel', name: '클래식/호텔', src: classicHotel },
+    { id: 'minimal_modern', name: '미니멀/모던', src: minimalModern },
+    { id: 'romantic_elegance', name: '로맨틱/엘레강스', src: romanticElegance },
+    { id: 'vintage_retro', name: '빈티지/레트로', src: vintageRetro },
+    { id: 'trendy_sns', name: '트렌디/SNS감성', src: trendySns },
+    { id: 'dramatic_cinematic', name: '드라마틱/시네마틱', src: dramaticCinematic },
+    { id: 'casual', name: '캐주얼', src: casual },
 ];
 
 // --- Type Definitions for Visualization ---
@@ -64,9 +73,9 @@ export const MoodTest: React.FC<MoodTestProps> = ({ onComplete, onNavigate, onVe
     const toggleMood = (id: string) => {
         const current = answers.q5_moods;
         if (current.includes(id)) {
-            updateAnswer('q5_moods', current.filter(c => c !== id));
-        } else if (current.length < 3) {
-            updateAnswer('q5_moods', [...current, id]);
+            updateAnswer('q5_moods', []);
+        } else {
+            updateAnswer('q5_moods', [id]);
         }
     };
 
@@ -167,7 +176,7 @@ export const MoodTest: React.FC<MoodTestProps> = ({ onComplete, onNavigate, onVe
                 {renderProgressBar()}
                 <div className="text-center mb-8">
                     <h2 className="text-3xl font-serif font-bold text-emerald-900 mb-2">Step 2. 무드/취향</h2>
-                    <p className="text-stone-500">결혼식을 어떤 무드의 사진으로 남기고 싶나요? (최대 3개 선택)</p>
+                    <p className="text-stone-500">결혼식을 어떤 무드의 사진으로 남기고 싶나요? (1개 선택)</p>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
@@ -408,7 +417,7 @@ const ResultView = ({
                 <div className="p-8 md:p-10">
                     {/* Type Breakdown Visualization */}
                     <div className="mb-8">
-                        <div className="text-center text-xs font-bold text-stone-400 uppercase mb-4 tracking-wide">나의 결BTI 분석</div>
+                        <div className="text-center text-xs font-bold text-stone-400 uppercase mb-4 tracking-wide">나의 WBTI 분석</div>
                         <div className="flex justify-center gap-2 sm:gap-4">
                             {typeLetters.map((letter, idx) => {
                                 const desc = TYPE_DESCRIPTIONS[letter] || { title: letter, sub: '' };

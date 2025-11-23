@@ -24,15 +24,29 @@ export async function fetchStudios(): Promise<Vendor[]> {
         const response = await fetch(`${API_BASE_URL}/api/v1/studios`);
 
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Failed to fetch studios: ${response.status} ${response.statusText}`, errorText);
             throw new Error(`Failed to fetch studios: ${response.statusText}`);
         }
 
         const data = await response.json();
+        console.log('Studios API response:', data);
         const studios: StudioApiResponse[] = data.studios || [];
+        console.log(`Found ${studios.length} studios in API response`);
 
-        return studios.map(mapStudioToVendor);
+        if (studios.length === 0) {
+            console.warn('No studios found in API response');
+        }
+
+        const vendors = studios.map(mapStudioToVendor);
+        console.log(`Mapped ${vendors.length} studios to vendors, categories:`, vendors.map(v => v.category));
+        return vendors;
     } catch (error) {
         console.error('Error fetching studios:', error);
+        // 네트워크 에러인 경우 더 자세한 정보 출력
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+            console.error('Network error - check if API server is running at:', API_BASE_URL);
+        }
         return [];
     }
 }
