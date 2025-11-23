@@ -27,7 +27,7 @@ export const Header: React.FC<HeaderProps> = ({ user, onNavigate, onLoginToggle 
                             className="flex items-center space-x-2 text-stone-600 hover:text-emerald-700 transition"
                         >
                             <Heart size={18} />
-                            <span className="font-medium">AI Mood Test</span>
+                            <span className="font-medium">WBTI - 나의 웨딩 환경 파악하기</span>
                         </button>
                         <button 
                             onClick={() => onNavigate('VIRTUAL_FITTING')}
