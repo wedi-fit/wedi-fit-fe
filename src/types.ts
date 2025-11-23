@@ -8,20 +8,21 @@ export enum VendorCategory {
 export interface AddOnOption {
     id: string;
     name: string;
-    price: number;
+    priceText: string; // 포맷된 가격 문자열 (예: "110,000 원" 또는 "110,000~330,000 원")
 }
 
 export interface Vendor {
     id: string;
     name: string;
     category: VendorCategory;
-    price: number;
+    basePrice: string; // 기본 가격 원본 문자열 (예: "130" 또는 "130~140")
     image: string;
-    description: string;
-    rating: number;
-    location: string; // simplified distance logic
+    location: string;
     distanceKm: number;
-    addOns: AddOnOption[];
+    addOns: AddOnOption[]; // 추가 옵션 (담당자지정, 야외, 야간)
+    otherOptions: string[]; // 기타 옵션 (세미콜론으로 구분된 내용)
+    phoneNumber?: string; // 전화번호 (studio_prices 테이블의 phone_number)
+    instagram?: string; // 인스타그램 계정명
 }
 
 export interface CartItem {
@@ -49,8 +50,7 @@ export type PageView =
     | 'MOOD_TEST' 
     | 'VIRTUAL_FITTING' 
     | 'MY_SCHEDULE' 
-    | 'CONTRACT' 
-    | 'CHAT';
+    | 'CONTRACT';
 
 export interface UserState {
     isLoggedIn: boolean;

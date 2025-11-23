@@ -9,7 +9,6 @@ import { MoodTest } from './pages/MoodTest';
 import { VirtualFitting } from './pages/VirtualFitting';
 import { MySchedule } from './pages/MySchedule';
 import { Contract } from './pages/Contract';
-import { Chat } from './pages/Chat';
 import { PageView, UserState, Vendor, CartItem, MoodTestResult } from './types';
 import { MOCK_CHECKLIST } from './constants';
 
@@ -91,8 +90,6 @@ const App: React.FC = () => {
                 return <MySchedule />;
             case 'CONTRACT':
                 return <Contract />;
-            case 'CHAT':
-                return <Chat />;
             default:
                 return <Landing onStart={() => setCurrentPage('HOME')} />;
         }

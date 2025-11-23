@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
-import { Filter, MapPin, SlidersHorizontal, Star, Sparkles, ArrowRight } from 'lucide-react';
-import { Vendor, UserState, MoodTestResult, PageView, VendorCategory } from '../types'; 
-import { MOCK_VENDORS as vendorsData } from '../constants';
+import React, { useState, useEffect } from 'react';
+import { MapPin, SlidersHorizontal, Sparkles, ArrowRight } from 'lucide-react';
+import { Vendor, UserState, MoodTestResult, PageView, VendorCategory } from '../types';
+import { fetchStudios } from '../services/studioService';
+import { formatMinPrice } from '../utils/priceFormatter';
 
 interface HomeProps {
     user: UserState;
@@ -16,11 +17,31 @@ type SortType = 'POPULARITY' | 'PRICE_ASC' | 'PRICE_DESC';
 export const Home: React.FC<HomeProps> = ({ user, moodResult, onVendorClick, onNavigate }) => {
     const [sortType, setSortType] = useState<SortType>('POPULARITY');
     const [activeCategory, setActiveCategory] = useState<string>('ALL');
+    const [vendors, setVendors] = useState<Vendor[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+
+    // Fetch vendors on mount
+    useEffect(() => {
+        const loadVendors = async () => {
+            setLoading(true);
+            try {
+                // 현재는 스튜디오만 조회 (드레스, 메이크업은 추후 추가)
+                const studios = await fetchStudios();
+                setVendors(studios);
+            } catch (error) {
+                console.error('Failed to load vendors:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadVendors();
+    }, []);
 
     // Sort logic
     const getSortedVendors = () => {
-        let sorted = [...vendorsData];
-        
+        let sorted = [...vendors];
+
         // Filter Category
         if (activeCategory !== 'ALL') {
             sorted = sorted.filter(v => v.category === activeCategory);
@@ -29,12 +50,21 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, onVendorClick, onN
         // Sort
         switch (sortType) {
             case 'PRICE_ASC':
-                return sorted.sort((a, b) => a.price - b.price);
+                return sorted.sort((a, b) => {
+                    const priceA = parseInt(a.basePrice.split('~')[0]) || 0;
+                    const priceB = parseInt(b.basePrice.split('~')[0]) || 0;
+                    return priceA - priceB;
+                });
             case 'PRICE_DESC':
-                return sorted.sort((a, b) => b.price - a.price);
+                return sorted.sort((a, b) => {
+                    const priceA = parseInt(a.basePrice.split('~')[0]) || 0;
+                    const priceB = parseInt(b.basePrice.split('~')[0]) || 0;
+                    return priceB - priceA;
+                });
             case 'POPULARITY':
             default:
-                return sorted.sort((a, b) => b.rating - a.rating);
+                // 인기순은 임시로 이름순으로 정렬 (평점 제거됨)
+                return sorted.sort((a, b) => a.name.localeCompare(b.name));
         }
     };
 
@@ -101,10 +131,10 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, onVendorClick, onN
                     {['ALL', 'Studio', 'Dress', 'Makeup'].map(cat => (
                         <button
                             key={cat}
-                            onClick={() => setActiveCategory(cat === 'ALL' ? 'ALL' : cat.toUpperCase())}
+                            onClick={() => setActiveCategory(cat)}
                             className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors
-                                ${activeCategory === (cat === 'ALL' ? 'ALL' : cat.toUpperCase()) 
-                                ? 'bg-emerald-800 text-white' 
+                                ${activeCategory === cat
+                                ? 'bg-emerald-800 text-white'
                                 : 'bg-white text-stone-600 border border-stone-200 hover:border-emerald-600'}`}
                         >
                             {cat}
@@ -132,53 +162,53 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, onVendorClick, onN
             </div>
 
             {/* Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {displayVendors.map(vendor => (
-                    <div 
-                        key={vendor.id}
-                        onClick={() => onVendorClick(vendor)}
-                        className="group bg-white rounded-xl overflow-hidden border border-stone-100 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
-                    >
-                        <div className="relative h-60 overflow-hidden">
-                            <img 
-                                src={vendor.image} 
-                                alt={vendor.name} 
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                            />
-                            <div className="absolute top-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded text-xs font-bold text-stone-800 uppercase tracking-wider">
-                                {vendor.category}
-                            </div>
-                            {/* Location Badge (Studio Only) */}
-                            {vendor.category === VendorCategory.STUDIO && (
-                                <div className="absolute bottom-3 right-3 bg-stone-900/60 text-white text-xs px-2 py-1 rounded backdrop-blur flex items-center">
-                                    <MapPin size={10} className="mr-1"/> {vendor.distanceKm}km
-                                </div>
-                            )}
-                        </div>
-                        
-                        <div className="p-5">
-                            <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-serif font-bold text-xl text-stone-800 group-hover:text-emerald-700 transition-colors truncate pr-2">
-                                    {vendor.name}
-                                </h3>
-                                <div className="flex items-center text-yellow-500 text-sm font-bold flex-shrink-0">
-                                    <Star size={14} className="fill-current mr-1"/>
-                                    {vendor.rating}
+            {loading ? (
+                <div className="flex items-center justify-center h-64">
+                    <div className="text-stone-500">로딩 중...</div>
+                </div>
+            ) : displayVendors.length === 0 ? (
+                <div className="flex items-center justify-center h-64">
+                    <div className="text-stone-500">업체 정보가 없습니다.</div>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {displayVendors.map(vendor => (
+                        <div
+                            key={vendor.id}
+                            onClick={() => onVendorClick(vendor)}
+                            className="group bg-white rounded-xl overflow-hidden border border-stone-100 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
+                        >
+                            <div className="relative h-60 overflow-hidden">
+                                <img
+                                    src={vendor.image}
+                                    alt={vendor.name}
+                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                />
+                                <div className="absolute top-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded text-xs font-bold text-stone-800 uppercase tracking-wider">
+                                    {vendor.category}
                                 </div>
                             </div>
-                            <p className="text-sm text-stone-500 line-clamp-2 mb-4 h-10">
-                                {vendor.description}
-                            </p>
-                            <div className="flex items-center justify-between pt-4 border-t border-stone-100">
-                                <span className="text-xs text-stone-400 font-medium">Starting from</span>
-                                <span className="text-lg font-bold text-emerald-900">
-                                    {vendor.price.toLocaleString()}원
-                                </span>
+
+                            <div className="p-5">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-serif font-bold text-xl text-stone-800 group-hover:text-emerald-700 transition-colors truncate pr-2 flex-1">
+                                        {vendor.name}
+                                    </h3>
+                                    <span className="text-lg font-bold text-emerald-900 whitespace-nowrap ml-2">
+                                        {formatMinPrice(vendor.basePrice)}
+                                    </span>
+                                </div>
+                                {/* Location Badge (Studio Only) */}
+                                {vendor.category === VendorCategory.STUDIO && vendor.location && (
+                                    <div className="text-stone-600 text-xs flex items-center">
+                                        <MapPin size={12} className="mr-1"/> {vendor.location}
+                                    </div>
+                                )}
                             </div>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
