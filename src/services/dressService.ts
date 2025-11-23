@@ -36,7 +36,8 @@ interface StylesApiResponse {
  */
 export async function fetchRecommendedDresses(): Promise<Dress[]> {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/styles`);
+        // /api/v1/dresses 엔드포인트 사용 (NAS의 드레스 이미지 목록)
+        const response = await fetch(`${API_BASE_URL}/api/v1/dresses`);
 
         if (!response.ok) {
             throw new Error(`Failed to fetch recommended dresses: ${response.statusText}`);
