@@ -65,6 +65,8 @@ export interface MoodTestAnswers {
     q2_guest_count: 'large' | 'private';
     q3_style: 'classic' | 'modern';
     q4_prep_style: 'lead' | 'delegate';
+    q6_entrance_personality: 'introvert' | 'extrovert';
+    q7_entrance_style: 'emotional' | 'natural';
     
     // Page 2: Mood (Array of image IDs)
     q5_moods: string[];
@@ -82,4 +84,11 @@ export interface MoodTestResult {
     tags: string[];
     recommendedVendorCategory: string;
     recommendedDressStyle: string;
+    entranceStyle?: string; // Q6-Q7 결과 설명
+}
+
+export interface BudgetInfo {
+    budget_studio: number; // 만원 단위
+    budget_dress: number; // 만원 단위
+    budget_makeup: number; // 만원 단위
 }

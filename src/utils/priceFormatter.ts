@@ -169,3 +169,70 @@ export function formatPriceInText(text: string | null | undefined): string {
         return `${formattedMin} 원`;
     });
 }
+
+/**
+ * basePrice 문자열에서 최소 가격을 만원 단위 숫자로 추출
+ * 예산과 비교하기 위해 사용
+ * extractMinPriceFromBasePrice와 동일한 로직 사용
+ *
+ * 예시:
+ * - "130" -> 130
+ * - "130~140" -> 130
+ * - "본식 250~280;촬영 190~250" -> 190 (가장 작은 값)
+ *
+ * @param basePrice basePrice 문자열 (만원 단위)
+ * @returns 만원 단위 숫자 (비교 불가능한 경우 0)
+ */
+export function getMinPriceInManwon(basePrice: string | null | undefined): number {
+    if (!basePrice || basePrice.trim() === '') {
+        return 0;
+    }
+
+    // extractMinPriceFromBasePrice와 동일한 로직 사용
+    // 2-3자리 숫자를 모두 찾기 (정규표현식: \d{2,3})
+    const numbers = basePrice.match(/\d{2,3}/g);
+    
+    if (!numbers || numbers.length === 0) {
+        return 0;
+    }
+
+    // 숫자 배열을 숫자로 변환하여 최소값 찾기
+    const minNumber = Math.min(...numbers.map(num => parseInt(num, 10)));
+    
+    return minNumber;
+}
+
+/**
+ * 업체의 basePrice가 예산 범위 내에 있는지 확인
+ * 예산의 120%까지 허용 (약간의 여유를 둠)
+ *
+ * @param basePrice 업체의 basePrice 문자열 (만원 단위)
+ * @param budget 예산 (만원 단위)
+ * @returns 예산 범위 내에 있으면 true
+ */
+export function isWithinBudget(basePrice: string | null | undefined, budget: number): boolean {
+    if (!budget || budget <= 0) {
+        return true; // 예산이 설정되지 않았으면 모든 업체 표시
+    }
+
+    if (!basePrice || basePrice.trim() === '' || basePrice === '0') {
+        return false; // 가격 정보가 없으면 제외 (명시적으로 가격이 없는 경우)
+    }
+
+    const minPrice = getMinPriceInManwon(basePrice);
+    if (minPrice === 0) {
+        return false; // 가격을 추출할 수 없으면 제외
+    }
+
+    // 예산의 120%까지 허용
+    const maxAllowedPrice = budget * 1.2;
+    
+    const isWithin = minPrice <= maxAllowedPrice;
+    
+    // 디버깅 로그 (개발 환경에서만)
+    if (process.env.NODE_ENV === 'development' && !isWithin) {
+        console.log(`[예산 체크] basePrice: "${basePrice}", 추출된 최소가격: ${minPrice}만원, 예산: ${budget}만원, 허용범위: ${maxAllowedPrice.toFixed(1)}만원`);
+    }
+    
+    return isWithin;
+}

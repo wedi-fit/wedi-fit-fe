@@ -1,9 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { analyzeMoodFull } from '../services/geminiService';
 import { Check, ChevronRight, ArrowLeft, Loader2, Sparkles, Shirt, ArrowRight as ArrowRightIcon, Star, Minus, Plus } from 'lucide-react';
 import { MoodTestAnswers, MoodTestResult, PageView, Vendor, VendorCategory } from '../types';
-import { MOCK_VENDORS } from '../constants';
+import { fetchStudios } from '../services/studioService';
+import { fetchDressVendors } from '../services/dressService';
+import { fetchMakeupVendors } from '../services/makeupService';
+import { isWithinBudget, formatMinPrice, getMinPriceInManwon } from '../utils/priceFormatter';
 
 // --- Quiz Data & Options ---
 
@@ -41,8 +44,10 @@ const TYPE_DESCRIPTIONS: Record<string, { title: string, sub: string }> = {
 
 // --- Component ---
 
+import { BudgetInfo } from '../types';
+
 interface MoodTestProps {
-    onComplete: (result: MoodTestResult) => void;
+    onComplete: (result: MoodTestResult, budget: BudgetInfo) => void;
     onNavigate: (page: PageView) => void;
     onVendorClick: (vendor: Vendor) => void; // Added Prop
 }
@@ -59,6 +64,8 @@ export const MoodTest: React.FC<MoodTestProps> = ({ onComplete, onNavigate, onVe
         q2_guest_count: 'large',
         q3_style: 'classic',
         q4_prep_style: 'lead',
+        q6_entrance_personality: 'introvert',
+        q7_entrance_style: 'emotional',
         q5_moods: [],
         // Default Budget (Unit: Man-won)
         budget_studio: 150,
@@ -89,7 +96,13 @@ export const MoodTest: React.FC<MoodTestProps> = ({ onComplete, onNavigate, onVe
             // Ensure we have a result before state updates
             if (analysis) {
                 setResult(analysis);
-                onComplete(analysis); // Notify App.tsx
+                // 예산 정보도 함께 전달
+                const budgetInfo: BudgetInfo = {
+                    budget_studio: answers.budget_studio,
+                    budget_dress: answers.budget_dress,
+                    budget_makeup: answers.budget_makeup
+                };
+                onComplete(analysis, budgetInfo); // Notify App.tsx
                 setStep(4); // Explicitly move to result step
             }
         } catch (e) {
@@ -118,45 +131,63 @@ export const MoodTest: React.FC<MoodTestProps> = ({ onComplete, onNavigate, onVe
         return (
             <div className="max-w-2xl mx-auto px-6 py-12 pb-32 animate-in fade-in duration-500">
                 {renderProgressBar()}
-                <h2 className="text-3xl font-serif font-bold text-emerald-900 mb-2">Step 1. 결정 성향</h2>
-                <p className="text-stone-500 mb-8">결혼식 준비 과정에서 당신의 선택 기준은 무엇인가요?</p>
+                <h2 className="text-3xl font-serif font-bold text-emerald-900 mb-2">Step 1. 결혼식 취향 질문</h2>
+                <p className="text-stone-500 mb-8">당신의 결혼식 취향을 알아보기 위한 간단한 질문입니다.</p>
 
                 <div className="space-y-8">
                     <QuestionBlock 
-                        question="Q1. 사진/영상 예산 투자는?"
+                        question="Q1. 결혼식 사진, 예쁘면 예산 좀 더 써도 괜찮아?"
                         options={[
-                            { label: "감성 중심", value: 'emotional', desc: "비싸더라도 내 마음에 드는 게 최고야." },
-                            { label: "실리 중심", value: 'practical', desc: "가성비와 효율이 중요해." }
+                            { label: "인생 한 번인데 예쁘게 남겨야지!", value: 'emotional', desc: "G형 (감성형)" },
+                            { label: "적당히 예쁘면 됐지, 가성비가 더 중요해.", value: 'practical', desc: "S형 (실리형)" }
                         ]}
                         selected={answers.q1_photo_budget}
                         onSelect={(v) => updateAnswer('q1_photo_budget', v)}
                     />
                      <QuestionBlock 
-                        question="Q2. 선호하는 하객 규모는?"
+                        question="Q2. 하객은 얼마나 오면 좋을까?"
                         options={[
-                            { label: "대형 웨딩", value: 'large', desc: "많은 사람들의 축복 속에서 화려하게." },
-                            { label: "프라이빗 웨딩", value: 'private', desc: "소규모로 가까운 지인들과 오붓하게." }
+                            { label: "많을수록 축하 받는 느낌이 나! 다 불러야지.", value: 'large', desc: "B형 (대형식형)" },
+                            { label: "진짜 소중한 사람들만 부르고 싶어.", value: 'private', desc: "P형 (프라이빗형)" }
                         ]}
                         selected={answers.q2_guest_count}
                         onSelect={(v) => updateAnswer('q2_guest_count', v)}
                     />
                     <QuestionBlock 
-                        question="Q3. 선호하는 예식 스타일은?"
+                        question="Q3. 드레스나 식장 분위기, 어떤 스타일이 더 끌려?"
                         options={[
-                            { label: "클래식", value: 'classic', desc: "유행을 타지 않는 우아한 정석." },
-                            { label: "모던/트렌디", value: 'modern', desc: "남들과는 다른 세련되고 힙한 느낌." }
+                            { label: "클래식하게, 정통 웨딩 느낌으로!", value: 'classic', desc: "C형 (클래식형)" },
+                            { label: "요즘 감성으로 세련되고 미니멀하게.", value: 'modern', desc: "M형 (모던형)" }
                         ]}
                         selected={answers.q3_style}
                         onSelect={(v) => updateAnswer('q3_style', v)}
                     />
                     <QuestionBlock 
-                        question="Q4. 결혼 준비 방식은?"
+                        question="Q4. 웨딩 준비는 어떻게 하고 싶어?"
                         options={[
-                            { label: "주도형", value: 'lead', desc: "하나부터 열까지 내가 직접 확인해야 해." },
-                            { label: "위임형", value: 'delegate', desc: "전문가나 플래너에게 믿고 맡기는 편." }
+                            { label: "내가 직접 비교하고 결정해야 맘이 놓여!", value: 'lead', desc: "L형 (주도형)" },
+                            { label: "전문가가 알아서 정리해주는 게 속 편하지.", value: 'delegate', desc: "F형 (위임형)" }
                         ]}
                         selected={answers.q4_prep_style}
                         onSelect={(v) => updateAnswer('q4_prep_style', v)}
+                    />
+                    <QuestionBlock 
+                        question="Q6. 결혼식에서 나는 하객들 앞에서 어떤 모습일까?"
+                        options={[
+                            { label: "살짝 긴장했지만 차분하게 입장!", value: 'introvert', desc: "내향형" },
+                            { label: "오예~ 손 흔들고 웃으며 입장!", value: 'extrovert', desc: "외향형" }
+                        ]}
+                        selected={answers.q6_entrance_personality}
+                        onSelect={(v) => updateAnswer('q6_entrance_personality', v)}
+                    />
+                    <QuestionBlock 
+                        question="Q7. 입장할 때 나는 어떤 스타일?"
+                        options={[
+                            { label: "음악과 감정을 느끼며, 한 걸음 한 걸음 천천히 가고 싶어!", value: 'emotional', desc: "감성형" },
+                            { label: "마음 편하게, 자연스럽게 즐기며 걷고 싶어!", value: 'natural', desc: "자연형" }
+                        ]}
+                        selected={answers.q7_entrance_style}
+                        onSelect={(v) => updateAnswer('q7_entrance_style', v)}
                     />
                 </div>
 
@@ -246,21 +277,21 @@ export const MoodTest: React.FC<MoodTestProps> = ({ onComplete, onNavigate, onVe
                             icon="📸"
                             value={answers.budget_studio} 
                             onChange={(val) => updateAnswer('budget_studio', val)} 
-                            min={50} max={500} 
+                            min={100} max={500} 
                         />
                         <BudgetSlider 
                             label="드레스 (본식+촬영)" 
                             icon="👗"
                             value={answers.budget_dress} 
                             onChange={(val) => updateAnswer('budget_dress', val)} 
-                            min={50} max={1000} 
+                            min={80} max={600} 
                         />
                         <BudgetSlider 
                             label="메이크업 (신랑/신부)" 
                             icon="💄"
                             value={answers.budget_makeup} 
                             onChange={(val) => updateAnswer('budget_makeup', val)} 
-                            min={30} max={300} 
+                            min={50} max={200} 
                         />
                     </div>
                 </div>
@@ -282,7 +313,12 @@ export const MoodTest: React.FC<MoodTestProps> = ({ onComplete, onNavigate, onVe
 
     // STEP 4: Result View
     if (step === 4 && result) {
-        return <ResultView result={result} onNavigate={onNavigate} onVendorClick={onVendorClick} />;
+        return <ResultView 
+            result={result} 
+            budget={answers}
+            onNavigate={onNavigate} 
+            onVendorClick={onVendorClick} 
+        />;
     }
 
     return null;
@@ -372,21 +408,122 @@ const LoadingView = () => (
 
 const ResultView = ({ 
     result, 
+    budget,
     onNavigate,
     onVendorClick 
 }: { 
     result: MoodTestResult, 
+    budget: MoodTestAnswers,
     onNavigate: (page: PageView) => void,
     onVendorClick: (vendor: Vendor) => void 
 }) => {
-    
-    // Mock logic to pick recommended vendors with safety check
-    // Ensure we have at least one vendor per category from mock data if available
-    const studio = MOCK_VENDORS.find(v => v.category === VendorCategory.STUDIO) || MOCK_VENDORS[0];
-    const dress = MOCK_VENDORS.find(v => v.category === VendorCategory.DRESS) || MOCK_VENDORS[1];
-    const makeup = MOCK_VENDORS.find(v => v.category === VendorCategory.MAKEUP) || MOCK_VENDORS[2];
-    
-    const recommendedVendors = [studio, dress, makeup].filter(Boolean);
+    const [recommendedVendors, setRecommendedVendors] = useState<Vendor[]>([]);
+    const [loadingVendors, setLoadingVendors] = useState(true);
+
+    // 예산 기반으로 실제 업체 추천
+    useEffect(() => {
+        const loadRecommendedVendors = async () => {
+            setLoadingVendors(true);
+            try {
+                const allVendors: Vendor[] = [];
+                
+                // 각 카테고리별로 업체 가져오기
+                try {
+                    const studios = await fetchStudios();
+                    allVendors.push(...studios);
+                } catch (error) {
+                    console.error('Failed to load studios:', error);
+                }
+                
+                try {
+                    const dressVendors = await fetchDressVendors();
+                    allVendors.push(...dressVendors);
+                } catch (error) {
+                    console.error('Failed to load dress vendors:', error);
+                }
+                
+                try {
+                    const makeupVendors = await fetchMakeupVendors();
+                    allVendors.push(...makeupVendors);
+                } catch (error) {
+                    console.error('Failed to load makeup vendors:', error);
+                }
+
+                // 예산 기반으로 필터링 및 추천
+                const filtered: Vendor[] = [];
+                
+                console.log(`[추천 업체] 예산 설정 - 스튜디오: ${budget.budget_studio}만원, 드레스: ${budget.budget_dress}만원, 메이크업: ${budget.budget_makeup}만원`);
+                console.log(`[추천 업체] 전체 업체 개수: ${allVendors.length}개`);
+                
+                // 스튜디오 추천 (예산 내)
+                const studiosInBudget = allVendors
+                    .filter(v => {
+                        if (v.category !== VendorCategory.STUDIO) return false;
+                        const isWithin = isWithinBudget(v.basePrice, budget.budget_studio);
+                        console.log(`[스튜디오] ${v.name}: basePrice="${v.basePrice}", 예산=${budget.budget_studio}만원, 포함=${isWithin}`);
+                        return isWithin;
+                    })
+                    .sort((a, b) => {
+                        const priceA = getMinPriceInManwon(a.basePrice);
+                        const priceB = getMinPriceInManwon(b.basePrice);
+                        return priceA - priceB; // 가격 낮은 순
+                    });
+                console.log(`[스튜디오] 예산 내 업체: ${studiosInBudget.length}개`);
+                if (studiosInBudget.length > 0) {
+                    filtered.push(studiosInBudget[0]); // 가장 저렴한 것 하나
+                    console.log(`[스튜디오] 추천: ${studiosInBudget[0].name} (${studiosInBudget[0].basePrice})`);
+                }
+
+                // 드레스 추천 (예산 내)
+                const dressesInBudget = allVendors
+                    .filter(v => {
+                        if (v.category !== VendorCategory.DRESS) return false;
+                        const isWithin = isWithinBudget(v.basePrice, budget.budget_dress);
+                        console.log(`[드레스] ${v.name}: basePrice="${v.basePrice}", 예산=${budget.budget_dress}만원, 포함=${isWithin}`);
+                        return isWithin;
+                    })
+                    .sort((a, b) => {
+                        const priceA = getMinPriceInManwon(a.basePrice);
+                        const priceB = getMinPriceInManwon(b.basePrice);
+                        return priceA - priceB;
+                    });
+                console.log(`[드레스] 예산 내 업체: ${dressesInBudget.length}개`);
+                if (dressesInBudget.length > 0) {
+                    filtered.push(dressesInBudget[0]);
+                    console.log(`[드레스] 추천: ${dressesInBudget[0].name} (${dressesInBudget[0].basePrice})`);
+                }
+
+                // 메이크업 추천 (예산 내)
+                const makeupInBudget = allVendors
+                    .filter(v => {
+                        if (v.category !== VendorCategory.MAKEUP) return false;
+                        const isWithin = isWithinBudget(v.basePrice, budget.budget_makeup);
+                        console.log(`[메이크업] ${v.name}: basePrice="${v.basePrice}", 예산=${budget.budget_makeup}만원, 포함=${isWithin}`);
+                        return isWithin;
+                    })
+                    .sort((a, b) => {
+                        const priceA = getMinPriceInManwon(a.basePrice);
+                        const priceB = getMinPriceInManwon(b.basePrice);
+                        return priceA - priceB;
+                    });
+                console.log(`[메이크업] 예산 내 업체: ${makeupInBudget.length}개`);
+                if (makeupInBudget.length > 0) {
+                    filtered.push(makeupInBudget[0]);
+                    console.log(`[메이크업] 추천: ${makeupInBudget[0].name} (${makeupInBudget[0].basePrice})`);
+                }
+                
+                console.log(`[추천 업체] 최종 추천 개수: ${filtered.length}개`);
+
+                setRecommendedVendors(filtered);
+            } catch (error) {
+                console.error('Error loading recommended vendors:', error);
+            } finally {
+                setLoadingVendors(false);
+            }
+        };
+
+        loadRecommendedVendors();
+    }, [budget]);
 
     // Breakdown the type code (e.g., "GBCL")
     const typeLetters = result.typeCode.split('');
@@ -432,11 +569,23 @@ const ResultView = ({
                         </div>
                     </div>
 
-                    <p className="text-lg text-stone-700 leading-relaxed text-center font-medium mb-8 max-w-2xl mx-auto">
+                    <div className="text-lg text-stone-700 leading-relaxed text-center font-medium mb-8 max-w-2xl mx-auto whitespace-pre-line">
                         {result.description}
-                    </p>
+                    </div>
+
+                    {/* Q6-Q7 Entrance Style Result */}
+                    {result.entranceStyle && (
+                        <div className="mt-10 pt-8 border-t border-stone-200">
+                            <h3 className="text-xl font-serif font-bold text-emerald-900 mb-4 text-center">
+                                입장 스타일 분석
+                            </h3>
+                            <div className="text-base text-stone-700 leading-relaxed max-w-2xl mx-auto whitespace-pre-line">
+                                {result.entranceStyle}
+                            </div>
+                        </div>
+                    )}
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                          <div className="bg-orange-50 p-5 rounded-xl border border-orange-100 text-center">
                             <div className="text-xs font-bold text-orange-800 uppercase mb-1">추천 업체 스타일</div>
                             <div className="text-lg font-bold text-stone-800">{result.recommendedVendorCategory}</div>
@@ -455,28 +604,39 @@ const ResultView = ({
                     <Star className="mr-2 fill-emerald-900" size={24}/>
                     "{result.typeName}" 맞춤 추천 업체
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    {recommendedVendors.map((vendor) => (
-                        <div 
-                            key={vendor.id} 
-                            onClick={() => onVendorClick(vendor)}
-                            className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm hover:shadow-md transition group cursor-pointer"
-                        >
-                            <div className="h-48 bg-stone-200 overflow-hidden">
-                                <img src={vendor.image} alt={vendor.name} className="w-full h-full object-cover transition duration-700 group-hover:scale-110" />
-                            </div>
-                            <div className="p-5">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="text-xs font-bold text-emerald-600 uppercase">{vendor.category}</div>
-                                    <div className="flex text-yellow-400 text-xs"><Star size={12} className="fill-current" /> {vendor.rating}</div>
+                {loadingVendors ? (
+                    <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mr-3" />
+                        <span className="text-stone-600">예산에 맞는 업체를 찾고 있습니다...</span>
+                    </div>
+                ) : recommendedVendors.length === 0 ? (
+                    <div className="text-center py-12 text-stone-500">
+                        예산 범위 내의 추천 업체를 찾을 수 없습니다.
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        {recommendedVendors.map((vendor) => (
+                            <div 
+                                key={`${vendor.category}-${vendor.id}`} 
+                                onClick={() => onVendorClick(vendor)}
+                                className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm hover:shadow-md transition group cursor-pointer"
+                            >
+                                <div className="h-48 bg-stone-200 overflow-hidden">
+                                    <img src={vendor.image} alt={vendor.name} className="w-full h-full object-cover transition duration-700 group-hover:scale-110" />
                                 </div>
-                                <div className="font-serif font-bold text-lg text-stone-800 mb-2 truncate">{vendor.name}</div>
-                                <div className="text-stone-500 text-sm line-clamp-2 mb-3">{vendor.description}</div>
-                                <div className="text-emerald-900 font-bold">{vendor.price.toLocaleString()}원~</div>
+                                <div className="p-5">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="text-xs font-bold text-emerald-600 uppercase">{vendor.category}</div>
+                                    </div>
+                                    <div className="font-serif font-bold text-lg text-stone-800 mb-2 truncate">{vendor.name}</div>
+                                    <div className="text-emerald-900 font-bold">
+                                        {vendor.basePrice ? formatMinPrice(vendor.basePrice) : '가격 문의'}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* CTA to Virtual Fitting */}

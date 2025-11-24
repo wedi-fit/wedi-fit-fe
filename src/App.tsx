@@ -9,7 +9,7 @@ import { MoodTest } from './pages/MoodTest';
 import { VirtualFitting } from './pages/VirtualFitting';
 import { MySchedule } from './pages/MySchedule';
 import { Contract } from './pages/Contract';
-import { PageView, UserState, Vendor, CartItem, MoodTestResult } from './types';
+import { PageView, UserState, Vendor, CartItem, MoodTestResult, BudgetInfo } from './types';
 import { MOCK_CHECKLIST } from './constants';
 
 const App: React.FC = () => {
@@ -21,6 +21,9 @@ const App: React.FC = () => {
     
     // Global Mood Result State
     const [moodResult, setMoodResult] = useState<MoodTestResult | null>(null);
+
+    // Budget State (from MoodTest Step 3)
+    const [budget, setBudget] = useState<BudgetInfo | null>(null);
 
     // Cart/Budget State
     const [cart, setCart] = useState<CartItem[]>([]);
@@ -75,12 +78,16 @@ const App: React.FC = () => {
                 return <Home 
                     user={user} 
                     moodResult={moodResult}
+                    budget={budget}
                     onVendorClick={handleVendorClick} 
                     onNavigate={setCurrentPage}
                 />;
             case 'MOOD_TEST':
                 return <MoodTest 
-                    onComplete={(result) => setMoodResult(result)} 
+                    onComplete={(result, budgetInfo) => {
+                        setMoodResult(result);
+                        setBudget(budgetInfo);
+                    }} 
                     onNavigate={setCurrentPage}
                     onVendorClick={handleVendorClick}
                 />;

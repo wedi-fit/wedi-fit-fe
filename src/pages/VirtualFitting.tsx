@@ -94,17 +94,61 @@ export const VirtualFitting: React.FC<VirtualFittingProps> = ({ moodResult }) =>
         setStep('FITTING_ROOM');
 
         try {
+            console.log(`가상 피팅 시작: 선택한 드레스 ${selectedDressIds.length}개`, selectedDressIds);
+            
             // 실제 이미지 합성 API 호출
             const result = await createCompositeImages(uploadedImageFile, selectedDressIds);
+            
+            console.log('가상 피팅 API 응답:', result);
+            console.log('선택한 드레스 개수:', selectedDressIds.length);
+            console.log('API 응답 결과 개수:', result?.results?.length || 0);
 
-            if (result.success_count > 0) {
-                setCompositeResults(result.results);
+            // API 응답 형식 확인 및 처리
+            let allResults: any[] = [];
+
+            if (result && result.results && Array.isArray(result.results)) {
+                // results 배열이 있는 경우
+                allResults = result.results;
+                console.log('처리할 결과 개수:', allResults.length);
+            } else if (result && Array.isArray(result)) {
+                // 결과가 직접 배열인 경우
+                allResults = result;
+                console.log('직접 배열 형식, 처리할 결과 개수:', allResults.length);
+            } else if (result && result.success_count !== undefined && result.results) {
+                // success_count 형식인 경우
+                allResults = result.results;
+                console.log('success_count 형식, 처리할 결과 개수:', allResults.length);
+            }
+
+            if (allResults.length > 0) {
+                // 모든 결과를 표시 (성공/실패 모두 포함)
+                // 선택한 드레스 개수와 결과 개수 비교
+                if (allResults.length < selectedDressIds.length) {
+                    console.warn(`경고: 선택한 드레스 ${selectedDressIds.length}개 중 ${allResults.length}개만 결과가 반환되었습니다.`);
+                }
+
+                // 결과를 선택한 드레스 ID 순서대로 정렬 (있는 경우)
+                const sortedResults = allResults.sort((a, b) => {
+                    const aIndex = selectedDressIds.indexOf(a.dress_id || a.id);
+                    const bIndex = selectedDressIds.indexOf(b.dress_id || b.id);
+                    if (aIndex === -1 && bIndex === -1) return 0;
+                    if (aIndex === -1) return 1;
+                    if (bIndex === -1) return -1;
+                    return aIndex - bIndex;
+                });
+
+                setCompositeResults(sortedResults);
+                console.log('최종 표시할 결과 개수:', sortedResults.length);
             } else {
-                alert('가상 피팅 생성에 실패했습니다.');
+                // 결과가 없는 경우
+                console.error('가상 피팅 결과가 없습니다:', result);
+                setCompositeResults([]);
+                alert('가상 피팅 생성에 실패했습니다. 다시 시도해주세요.');
             }
         } catch (error) {
             console.error('가상 피팅 생성 오류:', error);
-            alert('가상 피팅 생성 중 오류가 발생했습니다.');
+            setCompositeResults([]);
+            alert(`가상 피팅 생성 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
         } finally {
             setIsGeneratingFitting(false);
         }
@@ -366,41 +410,78 @@ export const VirtualFitting: React.FC<VirtualFittingProps> = ({ moodResult }) =>
                         <p className="text-stone-500">선택하신 드레스와 고객님의 체형을 합성하고 있습니다.</p>
                     </div>
                 ) : compositeResults.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {compositeResults.map((result, index) => (
-                            <div key={index} className="bg-white rounded-2xl overflow-hidden shadow-lg border border-stone-200">
-                                <div className="aspect-[3/4] bg-stone-100 relative">
-                                    {result.success ? (
-                                        <img
-                                            src={`${import.meta.env.VITE_API_URL || 'https://api.wedifit.me'}${result.image_url}`}
-                                            alt={result.dress_name}
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => {
-                                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=500&q=80';
-                                            }}
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-red-50">
-                                            <p className="text-red-600 text-sm px-4 text-center">{result.error_message || '합성 실패'}</p>
+                    <div>
+                        <div className="mb-4 text-sm text-stone-600">
+                            선택한 드레스 {selectedDressIds.length}개 중 {compositeResults.length}개의 피팅 결과를 표시합니다.
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {compositeResults.map((result, index) => {
+                                // result가 성공했는지 확인 (success가 false가 아니고, image_url이 있는 경우)
+                                const isSuccess = result.success !== false && result.image_url;
+                                const imageUrl = isSuccess 
+                                    ? (result.image_url.startsWith('http') 
+                                        ? result.image_url 
+                                        : `${import.meta.env.VITE_API_URL || 'https://api.wedifit.me'}${result.image_url}`)
+                                    : null;
+                                
+                                // 고유 키 생성 (dress_id, id, 또는 index 사용)
+                                const uniqueKey = result.dress_id || result.id || `dress-${index}`;
+
+                                return (
+                                    <div key={uniqueKey} className="bg-white rounded-2xl overflow-hidden shadow-lg border border-stone-200">
+                                        <div className="aspect-[3/4] bg-stone-100 relative">
+                                            {isSuccess && imageUrl ? (
+                                                <img
+                                                    src={imageUrl}
+                                                    alt={result.dress_name || `드레스 ${index + 1}`}
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => {
+                                                        console.error(`이미지 로드 실패: ${imageUrl}`);
+                                                        const target = e.target as HTMLImageElement;
+                                                        target.style.display = 'none';
+                                                        // 에러 메시지 표시를 위한 div 생성
+                                                        const errorDiv = document.createElement('div');
+                                                        errorDiv.className = 'w-full h-full flex items-center justify-center bg-red-50';
+                                                        errorDiv.innerHTML = '<p class="text-red-600 text-sm px-4 text-center">이미지를 불러올 수 없습니다</p>';
+                                                        target.parentElement?.appendChild(errorDiv);
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center bg-red-50">
+                                                    <p className="text-red-600 text-sm px-4 text-center">
+                                                        {result.error_message || '합성 실패'}
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                                <div className="p-4">
-                                    <h4 className="font-bold text-stone-900 mb-1">{result.dress_name}</h4>
-                                    <p className="text-sm text-stone-500">{result.style}</p>
-                                    {result.success && (
-                                        <div className="mt-3 flex items-center text-emerald-600 text-sm">
-                                            <CheckCircle size={16} className="mr-1" />
-                                            <span>피팅 완료</span>
+                                        <div className="p-4">
+                                            <h4 className="font-bold text-stone-900 mb-1">
+                                                {result.dress_name || `드레스 ${index + 1}`}
+                                            </h4>
+                                            {result.style && (
+                                                <p className="text-sm text-stone-500">{result.style}</p>
+                                            )}
+                                            {isSuccess && (
+                                                <div className="mt-3 flex items-center text-emerald-600 text-sm">
+                                                    <CheckCircle size={16} className="mr-1" />
+                                                    <span>피팅 완료</span>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 ) : (
                     <div className="bg-white rounded-3xl p-12 text-center">
-                        <p className="text-stone-500">가상 피팅 결과가 없습니다.</p>
+                        <p className="text-stone-500 mb-4">가상 피팅 결과가 없습니다.</p>
+                        <button
+                            onClick={() => setStep('RESULT')}
+                            className="text-emerald-600 hover:text-emerald-800 font-medium"
+                        >
+                            드레스를 다시 선택해주세요
+                        </button>
                     </div>
                 )}
             </div>

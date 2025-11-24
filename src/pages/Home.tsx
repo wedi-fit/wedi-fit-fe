@@ -1,22 +1,23 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { MapPin, SlidersHorizontal, Sparkles, ArrowRight } from 'lucide-react';
-import { Vendor, UserState, MoodTestResult, PageView, VendorCategory } from '../types';
+import { Vendor, UserState, MoodTestResult, PageView, VendorCategory, BudgetInfo } from '../types';
 import { fetchStudios } from '../services/studioService';
 import { fetchDressVendors } from '../services/dressService';
 import { fetchMakeupVendors } from '../services/makeupService';
-import { formatMinPrice } from '../utils/priceFormatter';
+import { formatMinPrice, isWithinBudget } from '../utils/priceFormatter';
 
 interface HomeProps {
     user: UserState;
     moodResult: MoodTestResult | null;
+    budget: BudgetInfo | null;
     onVendorClick: (vendor: Vendor) => void;
     onNavigate: (page: PageView) => void;
 }
 
 type SortType = 'POPULARITY' | 'PRICE_ASC' | 'PRICE_DESC';
 
-export const Home: React.FC<HomeProps> = ({ user, moodResult, onVendorClick, onNavigate }) => {
+export const Home: React.FC<HomeProps> = ({ user, moodResult, budget, onVendorClick, onNavigate }) => {
     const [sortType, setSortType] = useState<SortType>('POPULARITY');
     const [activeCategory, setActiveCategory] = useState<string>('ALL');
     const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -99,6 +100,38 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, onVendorClick, onN
         // Filter Category - ALL일 때는 필터링하지 않음
         if (activeCategory !== 'ALL') {
             filtered = filtered.filter(v => v.category === activeCategory);
+        }
+
+        // Filter by Budget - 예산이 설정된 경우에만 필터링
+        if (budget) {
+            const beforeFilterCount = filtered.length;
+            filtered = filtered.filter(v => {
+                let budgetAmount = 0;
+                if (v.category === VendorCategory.STUDIO) {
+                    budgetAmount = budget.budget_studio;
+                } else if (v.category === VendorCategory.DRESS) {
+                    budgetAmount = budget.budget_dress;
+                } else if (v.category === VendorCategory.MAKEUP) {
+                    budgetAmount = budget.budget_makeup;
+                }
+                
+                const isWithin = isWithinBudget(v.basePrice, budgetAmount);
+                
+                // 디버깅 로그 (개발 환경에서만)
+                if (process.env.NODE_ENV === 'development') {
+                    const minPrice = parseInt(v.basePrice.split('~')[0]) || 0;
+                    if (!isWithin) {
+                        console.log(`[예산 필터링] ${v.name} (${v.category}): 가격 ${minPrice}만원 > 예산 ${budgetAmount}만원 (120% = ${budgetAmount * 1.2}만원) - 제외`);
+                    }
+                }
+                
+                return isWithin;
+            });
+            
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`[예산 필터링] 필터링 전: ${beforeFilterCount}개, 필터링 후: ${filtered.length}개`);
+                console.log(`[예산 필터링] 설정된 예산 - 스튜디오: ${budget.budget_studio}만원, 드레스: ${budget.budget_dress}만원, 메이크업: ${budget.budget_makeup}만원`);
+            }
         }
 
         // Sort
