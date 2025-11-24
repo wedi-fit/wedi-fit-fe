@@ -62,17 +62,30 @@ npm run preview
 
 ## 배포
 
-이 프로젝트는 Netlify에 배포되도록 구성되어 있습니다.
+이 프로젝트는 Cloudflare Tunnel을 통해 배포됩니다.
 
-### Netlify 배포 설정
+### 배포 방법
 
-1. Netlify에 로그인
-2. 새 사이트 추가 (GitHub 저장소 연결)
-3. 빌드 설정:
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-4. 환경 변수 설정:
-   - 현재 환경 변수 설정이 필요하지 않습니다.
+1. 프론트엔드 빌드:
+   ```bash
+   npm run build
+   ```
+
+2. 빌드된 파일은 `dist` 폴더에 생성되며, Docker 볼륨 마운트를 통해 자동으로 서빙됩니다.
+
+3. 자동 배포 스크립트 사용:
+   ```bash
+   cd ../wedi-fit-be
+   ./scripts/deploy-frontend.sh
+   ```
+
+### 배포 인프라
+
+- **프론트엔드 서버**: nginx (Docker 컨테이너)
+- **라우팅**: Cloudflare Tunnel
+- **도메인**: wedifit.me
+
+자세한 배포 가이드는 `wedi-fit-be/md/FRONTEND_DEPLOYMENT.md`를 참조하세요.
 
 ## 프로젝트 구조
 
