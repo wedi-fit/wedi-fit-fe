@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, MapPin, Phone, CheckCircle } from 'lucide-react';
+import { X, MapPin, Phone, CheckCircle, Instagram } from 'lucide-react';
 import { Vendor, CartItem, PageView, VendorCategory } from '../types';
 import { formatPrice } from '../utils/priceFormatter';
 import { KakaoMap } from './KakaoMap';
@@ -280,7 +280,16 @@ export const VendorModal: React.FC<VendorModalProps> = ({
                     {/* 인스타그램 피드 섹션 */}
                     {vendor.instagram && (
                         <div className="bg-white p-6 rounded-xl border border-stone-100 shadow-sm">
-                            <h3 className="font-bold text-stone-800 text-lg mb-4">인스타그램</h3>
+                            <h3 className="font-bold text-stone-800 text-lg mb-3">인스타그램</h3>
+                            
+                            {/* 인스타그램 계정명 표시 */}
+                            <div className="flex items-center space-x-2 mb-4 pb-4 border-b border-stone-200">
+                                <Instagram size={20} className="text-pink-600" />
+                                <span className="text-stone-700 font-medium">
+                                    @{vendor.instagram.replace(/^@/, '')}
+                                </span>
+                            </div>
+                            
                             {instagramLoading ? (
                                 <div className="flex items-center justify-center py-8">
                                     <div className="text-stone-500">인스타그램 피드를 불러오는 중...</div>
