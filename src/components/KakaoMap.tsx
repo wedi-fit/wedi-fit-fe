@@ -17,7 +17,43 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({ location, businessName }) =>
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const KAKAO_MAP_APP_KEY = import.meta.env.VITE_KAKAO_MAP_APP_KEY;
+    // 환경 변수에서 키를 가져오거나, index.html의 스크립트 태그에서 추출
+    const getKakaoMapAppKey = (): string => {
+        // 1. 환경 변수에서 먼저 시도
+        const envKey = import.meta.env.VITE_KAKAO_MAP_APP_KEY;
+        if (envKey) {
+            return envKey;
+        }
+        
+        // 2. index.html의 스크립트 태그에서 키 추출
+        const scriptTag = document.querySelector('script[src*="dapi.kakao.com"]') as HTMLScriptElement;
+        if (scriptTag) {
+            // src 속성에서 직접 추출 (프로토콜 상대 URL 처리)
+            const src = scriptTag.src || scriptTag.getAttribute('src') || '';
+            if (src) {
+                // URL 파싱 (프로토콜 상대 URL도 처리)
+                const fullUrl = src.startsWith('//') ? `${window.location.protocol}${src}` : src;
+                try {
+                    const url = new URL(fullUrl);
+                    const appkey = url.searchParams.get('appkey');
+                    if (appkey) {
+                        return appkey;
+                    }
+                } catch (e) {
+                    // URL 파싱 실패 시 정규식으로 추출
+                    const match = src.match(/[?&]appkey=([^&]+)/);
+                    if (match && match[1]) {
+                        return match[1];
+                    }
+                }
+            }
+        }
+        
+        // 3. fallback: 하드코딩된 키 (index.html에 있는 키)
+        return '4605f8b9d84e8fc08bf04518a5bca6f9';
+    };
+
+    const KAKAO_MAP_APP_KEY = getKakaoMapAppKey();
 
     useEffect(() => {
         // 상태 초기화
