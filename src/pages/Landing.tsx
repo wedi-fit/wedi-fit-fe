@@ -34,7 +34,7 @@ export const Landing: React.FC<LandingProps> = ({ onStart }) => {
                     <div className="w-24 h-1.5 bg-gradient-to-r from-emerald-200 to-emerald-400 mx-auto rounded-full opacity-80"></div>
 
                     <p className="text-stone-600 leading-loose text-base md:text-lg">
-                        간단한 질문으로 나의 <span className="font-bold text-emerald-800 bg-emerald-100/50 px-1 rounded">‘결BTI’</span>를 알아보고,<br />
+                        간단한 질문으로 나의 <span className="font-bold text-emerald-800 bg-emerald-100/50 px-1 rounded">‘WBTI’</span>를 알아보고,<br />
                         나의 체형에 어울리는 <span className="font-bold text-emerald-800 bg-emerald-100/50 px-1 rounded">드레스 디자인과 가상 피팅 이미지</span>,<br />
                         예산대별 추천 스드메 업체까지 한눈에 확인해보세요.
                     </p>

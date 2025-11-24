@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { MapPin } from 'lucide-react';
 
 interface KakaoMapProps {
@@ -16,9 +16,10 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({ location, businessName }) =>
     const mapRef = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const mapInstanceRef = useRef<any>(null);
 
-    // 환경 변수에서 키를 가져오거나, index.html의 스크립트 태그에서 추출
-    const getKakaoMapAppKey = (): string => {
+    // 환경 변수에서 키를 가져오거나, index.html의 스크립트 태그에서 추출 (메모이제이션)
+    const KAKAO_MAP_APP_KEY = useMemo(() => {
         // 1. 환경 변수에서 먼저 시도
         const envKey = import.meta.env.VITE_KAKAO_MAP_APP_KEY;
         if (envKey) {
@@ -51,9 +52,7 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({ location, businessName }) =>
         
         // 3. fallback: 하드코딩된 키 (index.html에 있는 키)
         return '4605f8b9d84e8fc08bf04518a5bca6f9';
-    };
-
-    const KAKAO_MAP_APP_KEY = getKakaoMapAppKey();
+    }, []);
 
     useEffect(() => {
         // 상태 초기화
@@ -75,22 +74,27 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({ location, businessName }) =>
 
         console.log('카카오맵 초기화 시작:', { location, businessName, appKey: KAKAO_MAP_APP_KEY?.substring(0, 10) + '...' });
 
-        // mapRef가 준비될 때까지 대기하는 함수
-        const waitForMapRef = (callback: () => void, maxAttempts = 10) => {
+        // mapRef가 준비될 때까지 대기하는 함수 (즉시 실행)
+        const waitForMapRef = (callback: () => void, maxAttempts = 5) => {
             let attempts = 0;
             const checkRef = () => {
                 attempts++;
                 if (mapRef.current) {
                     callback();
                 } else if (attempts < maxAttempts) {
-                    setTimeout(checkRef, 100);
+                    setTimeout(checkRef, 50);
                 } else {
                     console.error('mapRef가 준비되지 않았습니다.');
                     setError('지도 컨테이너를 초기화할 수 없습니다.');
                     setIsLoading(false);
                 }
             };
-            checkRef();
+            // 즉시 한 번 체크
+            if (mapRef.current) {
+                callback();
+            } else {
+                checkRef();
+            }
         };
 
         const initializeMap = () => {
@@ -112,7 +116,16 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({ location, businessName }) =>
             const geocodeAddress = async () => {
                 try {
                     const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.wedifit.me';
-                    const response = await fetch(`${API_BASE_URL}/api/v1/geocode?query=${encodeURIComponent(location)}`);
+                    
+                    // 타임아웃 설정 (10초)
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000);
+                    
+                    const response = await fetch(`${API_BASE_URL}/api/v1/geocode?query=${encodeURIComponent(location)}`, {
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
                     
                     if (!response.ok) {
                         throw new Error(`Geocoding API 오류: ${response.status}`);
@@ -127,6 +140,11 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({ location, businessName }) =>
                         return;
                     }
                     
+                    // 기존 지도 인스턴스가 있으면 제거
+                    if (mapInstanceRef.current) {
+                        mapInstanceRef.current = null;
+                    }
+                    
                     // 카카오맵 좌표 객체 생성
                     const position = new window.kakao.maps.LatLng(
                         data.latitude,
@@ -139,6 +157,7 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({ location, businessName }) =>
                         level: 3 // 확대 레벨 (1-14, 숫자가 작을수록 확대)
                     };
                     const map = new window.kakao.maps.Map(mapRef.current, mapOption);
+                    mapInstanceRef.current = map;
 
                     // 마커 생성
                     const marker = new window.kakao.maps.Marker({
@@ -169,9 +188,14 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({ location, businessName }) =>
                     infowindow.open(map, marker);
 
                     setIsLoading(false);
-                } catch (error) {
-                    console.error('Geocoding 오류:', error);
-                    setError(`주소 검색 중 오류가 발생했습니다: ${error}`);
+                } catch (error: any) {
+                    if (error.name === 'AbortError') {
+                        console.error('Geocoding API 타임아웃');
+                        setError('주소 검색 시간이 초과되었습니다. 다시 시도해주세요.');
+                    } else {
+                        console.error('Geocoding 오류:', error);
+                        setError(`주소 검색 중 오류가 발생했습니다: ${error.message || error}`);
+                    }
                     setIsLoading(false);
                 }
             };
@@ -203,7 +227,7 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({ location, businessName }) =>
 
             console.log('✅ 카카오맵 스크립트 태그 발견');
 
-            // 스크립트 로드 완료 확인 함수
+            // 스크립트 로드 완료 확인 함수 (더 빠른 체크)
             const checkKakaoMaps = (attempts = 0) => {
                 if (window.kakao && window.kakao.maps) {
                     // 카카오맵 API가 로드됨
@@ -211,22 +235,24 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({ location, businessName }) =>
                     waitForMapRef(() => {
                         initializeMap();
                     });
-                } else if (attempts < 50) {
-                    // 아직 로드 중일 수 있음
-                    if (attempts % 10 === 0) {
-                        console.log(`카카오맵 로드 대기 중... (${attempts + 1}/50)`, {
+                } else if (attempts < 100) {
+                    // 원격 서버를 위해 더 많은 시도 허용 (최대 20초)
+                    // 초반에는 빠르게 체크, 후반에는 느리게
+                    const delay = attempts < 20 ? 100 : 300;
+                    if (attempts % 10 === 0 && attempts > 0) {
+                        console.log(`카카오맵 로드 대기 중... (${attempts + 1}/100)`, {
                             hasKakao: !!window.kakao,
                             hasMaps: !!(window.kakao && window.kakao.maps)
                         });
                     }
-                    setTimeout(() => checkKakaoMaps(attempts + 1), 200);
+                    setTimeout(() => checkKakaoMaps(attempts + 1), delay);
                 } else {
                     // 타임아웃
                     console.error('❌ 카카오맵 API 로드 타임아웃');
                     console.error('현재 상태:', {
                         hasKakao: !!window.kakao,
                         hasMaps: !!(window.kakao && window.kakao.maps),
-                        scriptSrc: existingScript.src,
+                        scriptSrc: existingScript.getAttribute('src'),
                         currentDomain: window.location.hostname,
                         currentPort: window.location.port
                     });
@@ -279,7 +305,10 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({ location, businessName }) =>
         initializeKakaoMap();
 
         return () => {
-            // Cleanup은 필요시 추가
+            // Cleanup: 지도 인스턴스 정리
+            if (mapInstanceRef.current) {
+                mapInstanceRef.current = null;
+            }
         };
     }, [location, businessName, KAKAO_MAP_APP_KEY]);
 
@@ -322,7 +351,12 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({ location, businessName }) =>
             <div 
                 ref={mapRef} 
                 className="w-full h-64 rounded-lg overflow-hidden border border-stone-200"
-                style={{ minHeight: '256px', display: isLoading || error ? 'none' : 'block' }}
+                style={{ 
+                    minHeight: '256px',
+                    visibility: isLoading || error ? 'hidden' : 'visible',
+                    opacity: isLoading || error ? 0 : 1,
+                    transition: 'opacity 0.3s ease-in-out'
+                }}
             />
         </div>
     );
