@@ -22,10 +22,16 @@ export interface MakeupProduct {
 
 /**
  * 메이크업 업체 목록 조회
+ * @param maxBudget 예산 (만원 단위, 선택사항)
  */
-export async function fetchMakeupVendors(): Promise<Vendor[]> {
+export async function fetchMakeupVendors(maxBudget?: number): Promise<Vendor[]> {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/makeup-prices`);
+        let url = `${API_BASE_URL}/api/v1/makeup-prices`;
+        if (maxBudget !== undefined && maxBudget > 0) {
+            url += `?max_budget=${maxBudget}`;
+        }
+        
+        const response = await fetch(url);
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -35,16 +41,19 @@ export async function fetchMakeupVendors(): Promise<Vendor[]> {
 
         const data = await response.json();
         const makeupPrices: MakeupPriceApiResponse[] = data.makeup_prices || data.makeups || [];
+        console.log(`Found ${makeupPrices.length} makeup vendors in API response${maxBudget ? ` (예산: ${maxBudget}만원)` : ''}`);
 
-        // business_name으로 그룹화
+        // business_name으로 그룹화 (백엔드에서 이미 중복 제거했지만 안전을 위해)
         const vendorsMap = new Map<string, Vendor>();
         
         makeupPrices.forEach(makeupPrice => {
             const businessName = makeupPrice.business_name;
             
             if (!vendorsMap.has(businessName)) {
-                // base_price에서 최소 가격 추출
-                const minPrice = extractMinPriceFromBasePrice(makeupPrice.base_price);
+                // 백엔드에서 이미 min_price를 제공하므로 사용 (없으면 파싱)
+                const minPrice = (makeupPrice as any).min_price 
+                    ? String((makeupPrice as any).min_price)
+                    : extractMinPriceFromBasePrice(makeupPrice.base_price);
                 
                 // 더미 이미지
                 const dummyImage = 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=800&q=80';
@@ -53,7 +62,7 @@ export async function fetchMakeupVendors(): Promise<Vendor[]> {
                     id: `makeup-${businessName}`, // 임시 ID (business_name 기반)
                     name: businessName,
                     category: VendorCategory.MAKEUP,
-                    basePrice: minPrice,
+                    basePrice: minPrice, // 백엔드에서 제공한 최소 가격 사용
                     image: dummyImage,
                     location: '위치 정보 없음',
                     distanceKm: 0,

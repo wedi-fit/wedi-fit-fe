@@ -78,10 +78,16 @@ export async function fetchAllDresses(): Promise<Dress[]> {
 
 /**
  * 드레스 업체 목록 조회
+ * @param maxBudget 예산 (만원 단위, 선택사항)
  */
-export async function fetchDressVendors(): Promise<Vendor[]> {
+export async function fetchDressVendors(maxBudget?: number): Promise<Vendor[]> {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/dress-prices`);
+        let url = `${API_BASE_URL}/api/v1/dress-prices`;
+        if (maxBudget !== undefined && maxBudget > 0) {
+            url += `?max_budget=${maxBudget}`;
+        }
+        
+        const response = await fetch(url);
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -91,16 +97,19 @@ export async function fetchDressVendors(): Promise<Vendor[]> {
 
         const data = await response.json();
         const dressPrices: DressPriceApiResponse[] = data.dress_prices || data.dresses || [];
+        console.log(`Found ${dressPrices.length} dress vendors in API response${maxBudget ? ` (예산: ${maxBudget}만원)` : ''}`);
 
-        // business_name으로 그룹화
+        // business_name으로 그룹화 (백엔드에서 이미 중복 제거했지만 안전을 위해)
         const vendorsMap = new Map<string, Vendor>();
         
         dressPrices.forEach(dressPrice => {
             const businessName = dressPrice.business_name;
             
             if (!vendorsMap.has(businessName)) {
-                // base_price에서 최소 가격 추출
-                const minPrice = extractMinPriceFromBasePrice(dressPrice.base_price);
+                // 백엔드에서 이미 min_price를 제공하므로 사용 (없으면 파싱)
+                const minPrice = (dressPrice as any).min_price 
+                    ? String((dressPrice as any).min_price)
+                    : extractMinPriceFromBasePrice(dressPrice.base_price);
                 
                 // 더미 이미지
                 const dummyImage = 'https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=800&q=80';
@@ -124,9 +133,9 @@ export async function fetchDressVendors(): Promise<Vendor[]> {
                     id: `dress-${businessName}`, // 임시 ID (business_name 기반)
                     name: businessName,
                     category: VendorCategory.DRESS,
-                    basePrice: minPrice,
+                    basePrice: minPrice, // 백엔드에서 제공한 최소 가격 사용
                     image: dummyImage,
-                    location: dressPrice.location || '위치 정보 없음',
+                    location: (dressPrice as any).location || '위치 정보 없음',
                     distanceKm: 0,
                     addOns: [],
                     otherOptions: otherOptions

@@ -176,9 +176,11 @@ export function formatPriceInText(text: string | null | undefined): string {
  * extractMinPriceFromBasePrice와 동일한 로직 사용
  *
  * 예시:
- * - "130" -> 130
+ * - "110" -> 110 (110만원)
+ * - "130" -> 130 (130만원)
  * - "130~140" -> 130
  * - "본식 250~280;촬영 190~250" -> 190 (가장 작은 값)
+ * - "110만원" -> 110
  *
  * @param basePrice basePrice 문자열 (만원 단위)
  * @returns 만원 단위 숫자 (비교 불가능한 경우 0)
@@ -188,11 +190,39 @@ export function getMinPriceInManwon(basePrice: string | null | undefined): numbe
         return 0;
     }
 
-    // extractMinPriceFromBasePrice와 동일한 로직 사용
-    // 2-3자리 숫자를 모두 찾기 (정규표현식: \d{2,3})
-    const numbers = basePrice.match(/\d{2,3}/g);
+    const trimmed = basePrice.trim();
+    
+    // 먼저 순수 숫자만 있는 경우 (예: "110", "130")
+    const pureNumber = /^\d+$/.test(trimmed);
+    if (pureNumber) {
+        const num = parseInt(trimmed, 10);
+        // 1자리 숫자는 만원 단위가 아닐 수 있으므로, 2자리 이상만 처리
+        if (num >= 10 && num <= 9999) {
+            return num;
+        }
+    }
+
+    // 범위 형식 (예: "110~120", "130~140")
+    const rangeMatch = trimmed.match(/^(\d+)~(\d+)$/);
+    if (rangeMatch) {
+        const min = parseInt(rangeMatch[1], 10);
+        const max = parseInt(rangeMatch[2], 10);
+        return Math.min(min, max);
+    }
+
+    // 복잡한 형식 (예: "본식 250~280;촬영 190~250")
+    // 2-4자리 숫자를 모두 찾기 (만원 단위는 보통 2-4자리)
+    const numbers = trimmed.match(/\d{2,4}/g);
     
     if (!numbers || numbers.length === 0) {
+        // 2-4자리 숫자가 없으면 1자리 이상 숫자 찾기 (마지막 시도)
+        const anyNumbers = trimmed.match(/\d+/g);
+        if (anyNumbers && anyNumbers.length > 0) {
+            const nums = anyNumbers.map(num => parseInt(num, 10)).filter(n => n >= 10);
+            if (nums.length > 0) {
+                return Math.min(...nums);
+            }
+        }
         return 0;
     }
 
@@ -204,7 +234,7 @@ export function getMinPriceInManwon(basePrice: string | null | undefined): numbe
 
 /**
  * 업체의 basePrice가 예산 범위 내에 있는지 확인
- * 예산의 120%까지 허용 (약간의 여유를 둠)
+ * 예산의 100%까지만 허용 (예산을 초과하지 않는 업체만)
  *
  * @param basePrice 업체의 basePrice 문자열 (만원 단위)
  * @param budget 예산 (만원 단위)
@@ -220,19 +250,19 @@ export function isWithinBudget(basePrice: string | null | undefined, budget: num
     }
 
     const minPrice = getMinPriceInManwon(basePrice);
+    
+    // 디버깅 로그 (항상 출력하여 문제 파악)
+    console.log(`[예산 체크] basePrice: "${basePrice}" -> 추출된 최소가격: ${minPrice}만원, 예산: ${budget}만원`);
+    
     if (minPrice === 0) {
+        console.warn(`[예산 체크] 가격을 추출할 수 없음: "${basePrice}"`);
         return false; // 가격을 추출할 수 없으면 제외
     }
 
-    // 예산의 120%까지 허용
-    const maxAllowedPrice = budget * 1.2;
+    // 예산을 초과하지 않는 업체만 허용 (예산의 100%까지만)
+    const isWithin = minPrice <= budget;
     
-    const isWithin = minPrice <= maxAllowedPrice;
-    
-    // 디버깅 로그 (개발 환경에서만)
-    if (process.env.NODE_ENV === 'development' && !isWithin) {
-        console.log(`[예산 체크] basePrice: "${basePrice}", 추출된 최소가격: ${minPrice}만원, 예산: ${budget}만원, 허용범위: ${maxAllowedPrice.toFixed(1)}만원`);
-    }
+    console.log(`[예산 체크] ${isWithin ? '✅ 포함' : '❌ 제외'} - 최소가격: ${minPrice}만원, 예산: ${budget}만원`);
     
     return isWithin;
 }

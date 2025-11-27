@@ -5,7 +5,7 @@ import { Vendor, UserState, MoodTestResult, PageView, VendorCategory, BudgetInfo
 import { fetchStudios } from '../services/studioService';
 import { fetchDressVendors } from '../services/dressService';
 import { fetchMakeupVendors } from '../services/makeupService';
-import { formatMinPrice, isWithinBudget } from '../utils/priceFormatter';
+import { formatMinPrice } from '../utils/priceFormatter';
 
 interface HomeProps {
     user: UserState;
@@ -30,12 +30,17 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, budget, onVendorCl
             const allVendors: Vendor[] = [];
             const errors: string[] = [];
             
+            // 예산이 설정된 경우 백엔드에서 예산 기반 필터링된 업체 조회
+            const studioBudget = budget?.budget_studio;
+            const dressBudget = budget?.budget_dress;
+            const makeupBudget = budget?.budget_makeup;
+            
             // 스튜디오, 드레스, 메이크업 업체를 독립적으로 조회 (하나가 실패해도 다른 것은 로드)
             try {
-                console.log('[Home] Fetching studios...');
-                const studios = await fetchStudios();
+                console.log(`[Home] Fetching studios${studioBudget ? ` (예산: ${studioBudget}만원)` : ''}...`);
+                const studios = await fetchStudios(studioBudget);
                 allVendors.push(...studios);
-                console.log(`[Home] ✅ Loaded ${studios.length} studios`);
+                console.log(`[Home] ✅ Loaded ${studios.length} studios${studioBudget ? ` (예산 필터링 적용)` : ''}`);
             } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error);
                 console.error('[Home] ❌ Failed to load studios:', errorMsg);
@@ -43,10 +48,10 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, budget, onVendorCl
             }
             
             try {
-                console.log('[Home] Fetching dress vendors...');
-                const dressVendors = await fetchDressVendors();
+                console.log(`[Home] Fetching dress vendors${dressBudget ? ` (예산: ${dressBudget}만원)` : ''}...`);
+                const dressVendors = await fetchDressVendors(dressBudget);
                 allVendors.push(...dressVendors);
-                console.log(`[Home] ✅ Loaded ${dressVendors.length} dress vendors`);
+                console.log(`[Home] ✅ Loaded ${dressVendors.length} dress vendors${dressBudget ? ` (예산 필터링 적용)` : ''}`);
             } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error);
                 console.error('[Home] ❌ Failed to load dress vendors:', errorMsg);
@@ -54,10 +59,10 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, budget, onVendorCl
             }
             
             try {
-                console.log('[Home] Fetching makeup vendors...');
-                const makeupVendors = await fetchMakeupVendors();
+                console.log(`[Home] Fetching makeup vendors${makeupBudget ? ` (예산: ${makeupBudget}만원)` : ''}...`);
+                const makeupVendors = await fetchMakeupVendors(makeupBudget);
                 allVendors.push(...makeupVendors);
-                console.log(`[Home] ✅ Loaded ${makeupVendors.length} makeup vendors`);
+                console.log(`[Home] ✅ Loaded ${makeupVendors.length} makeup vendors${makeupBudget ? ` (예산 필터링 적용)` : ''}`);
             } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error);
                 console.error('[Home] ❌ Failed to load makeup vendors:', errorMsg);
@@ -91,7 +96,7 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, budget, onVendorCl
         };
 
         loadVendors();
-    }, []);
+    }, [budget]); // budget이 변경되면 다시 로드
 
     // Sort logic with filtering
     const displayVendors = useMemo(() => {
@@ -102,37 +107,8 @@ export const Home: React.FC<HomeProps> = ({ user, moodResult, budget, onVendorCl
             filtered = filtered.filter(v => v.category === activeCategory);
         }
 
-        // Filter by Budget - 예산이 설정된 경우에만 필터링
-        if (budget) {
-            const beforeFilterCount = filtered.length;
-            filtered = filtered.filter(v => {
-                let budgetAmount = 0;
-                if (v.category === VendorCategory.STUDIO) {
-                    budgetAmount = budget.budget_studio;
-                } else if (v.category === VendorCategory.DRESS) {
-                    budgetAmount = budget.budget_dress;
-                } else if (v.category === VendorCategory.MAKEUP) {
-                    budgetAmount = budget.budget_makeup;
-                }
-                
-                const isWithin = isWithinBudget(v.basePrice, budgetAmount);
-                
-                // 디버깅 로그 (개발 환경에서만)
-                if (process.env.NODE_ENV === 'development') {
-                    const minPrice = parseInt(v.basePrice.split('~')[0]) || 0;
-                    if (!isWithin) {
-                        console.log(`[예산 필터링] ${v.name} (${v.category}): 가격 ${minPrice}만원 > 예산 ${budgetAmount}만원 (120% = ${budgetAmount * 1.2}만원) - 제외`);
-                    }
-                }
-                
-                return isWithin;
-            });
-            
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`[예산 필터링] 필터링 전: ${beforeFilterCount}개, 필터링 후: ${filtered.length}개`);
-                console.log(`[예산 필터링] 설정된 예산 - 스튜디오: ${budget.budget_studio}만원, 드레스: ${budget.budget_dress}만원, 메이크업: ${budget.budget_makeup}만원`);
-            }
-        }
+        // 예산 필터링은 백엔드에서 이미 처리되었으므로 프론트엔드에서는 추가 필터링 불필요
+        // (백엔드에서 예산 기반으로 필터링된 데이터를 받아옴)
 
         // Sort
         let sorted = [...filtered];

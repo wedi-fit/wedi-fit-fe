@@ -6,7 +6,7 @@ import { MoodTestAnswers, MoodTestResult, PageView, Vendor, VendorCategory } fro
 import { fetchStudios } from '../services/studioService';
 import { fetchDressVendors } from '../services/dressService';
 import { fetchMakeupVendors } from '../services/makeupService';
-import { isWithinBudget, formatMinPrice, getMinPriceInManwon } from '../utils/priceFormatter';
+import { formatMinPrice, getMinPriceInManwon } from '../utils/priceFormatter';
 
 // --- Quiz Data & Options ---
 
@@ -129,9 +129,9 @@ export const MoodTest: React.FC<MoodTestProps> = ({ onComplete, onNavigate, onVe
     // STEP 1: Decision Style
     if (step === 1) {
         return (
-            <div className="max-w-2xl mx-auto px-6 py-12 pb-32 animate-in fade-in duration-500">
+            <div className="max-w-5xl mx-auto px-6 py-12 pb-32 animate-in fade-in duration-500">
                 {renderProgressBar()}
-                <h2 className="text-3xl font-serif font-bold text-emerald-900 mb-2">Step 1. 결혼식 취향 질문</h2>
+                <h2 className="text-3xl font-serif font-bold text-emerald-900 mb-2">Step 1. 결혼식 취향</h2>
                 <p className="text-stone-500 mb-8">당신의 결혼식 취향을 알아보기 위한 간단한 질문입니다.</p>
 
                 <div className="space-y-8">
@@ -183,7 +183,7 @@ export const MoodTest: React.FC<MoodTestProps> = ({ onComplete, onNavigate, onVe
                     <QuestionBlock 
                         question="Q7. 입장할 때 나는 어떤 스타일?"
                         options={[
-                            { label: "음악과 감정을 느끼며, 한 걸음 한 걸음 천천히 가고 싶어!", value: 'emotional', desc: "감성형" },
+                            { label: "음악과 감정을 느끼며, 한 걸음씩 천천히 가고 싶어!", value: 'emotional', desc: "감성형" },
                             { label: "마음 편하게, 자연스럽게 즐기며 걷고 싶어!", value: 'natural', desc: "자연형" }
                         ]}
                         selected={answers.q7_entrance_style}
@@ -334,15 +334,14 @@ const QuestionBlock = ({ question, options, selected, onSelect }: any) => (
                 <button
                     key={opt.value}
                     onClick={() => onSelect(opt.value)}
-                    className={`p-4 rounded-lg border text-left transition-all duration-200
+                    className={`p-7 rounded-lg border text-left transition-all duration-200 min-h-[80px] flex items-center
                         ${selected === opt.value 
                             ? 'border-emerald-500 bg-emerald-50 shadow-md ring-1 ring-emerald-500' 
                             : 'border-stone-200 hover:border-emerald-300 hover:bg-stone-50'}`}
                 >
-                    <div className={`font-bold mb-1 ${selected === opt.value ? 'text-emerald-900' : 'text-stone-700'}`}>
+                    <div className={`font-bold ${selected === opt.value ? 'text-emerald-900' : 'text-stone-700'}`}>
                         {opt.label}
                     </div>
-                    <div className="text-xs text-stone-400">{opt.desc}</div>
                 </button>
             ))}
         </div>
@@ -427,89 +426,86 @@ const ResultView = ({
             try {
                 const allVendors: Vendor[] = [];
                 
-                // 각 카테고리별로 업체 가져오기
+                // 각 카테고리별로 예산 기반 업체 가져오기 (백엔드에서 필터링)
                 try {
-                    const studios = await fetchStudios();
+                    const studios = await fetchStudios(budget.budget_studio);
                     allVendors.push(...studios);
+                    console.log(`[스튜디오] 예산 ${budget.budget_studio}만원으로 ${studios.length}개 업체 로드`);
                 } catch (error) {
                     console.error('Failed to load studios:', error);
                 }
                 
                 try {
-                    const dressVendors = await fetchDressVendors();
+                    const dressVendors = await fetchDressVendors(budget.budget_dress);
                     allVendors.push(...dressVendors);
+                    console.log(`[드레스] 예산 ${budget.budget_dress}만원으로 ${dressVendors.length}개 업체 로드`);
                 } catch (error) {
                     console.error('Failed to load dress vendors:', error);
                 }
                 
                 try {
-                    const makeupVendors = await fetchMakeupVendors();
+                    const makeupVendors = await fetchMakeupVendors(budget.budget_makeup);
                     allVendors.push(...makeupVendors);
+                    console.log(`[메이크업] 예산 ${budget.budget_makeup}만원으로 ${makeupVendors.length}개 업체 로드`);
                 } catch (error) {
                     console.error('Failed to load makeup vendors:', error);
                 }
 
-                // 예산 기반으로 필터링 및 추천
+                // 예산 기반으로 추천 (백엔드에서 이미 필터링 및 정렬 완료)
                 const filtered: Vendor[] = [];
                 
                 console.log(`[추천 업체] 예산 설정 - 스튜디오: ${budget.budget_studio}만원, 드레스: ${budget.budget_dress}만원, 메이크업: ${budget.budget_makeup}만원`);
-                console.log(`[추천 업체] 전체 업체 개수: ${allVendors.length}개`);
+                console.log(`[추천 업체] 전체 업체 개수: ${allVendors.length}개 (백엔드에서 이미 예산 필터링 완료)`);
                 
-                // 스튜디오 추천 (예산 내)
-                const studiosInBudget = allVendors
-                    .filter(v => {
-                        if (v.category !== VendorCategory.STUDIO) return false;
-                        const isWithin = isWithinBudget(v.basePrice, budget.budget_studio);
-                        console.log(`[스튜디오] ${v.name}: basePrice="${v.basePrice}", 예산=${budget.budget_studio}만원, 포함=${isWithin}`);
-                        return isWithin;
-                    })
-                    .sort((a, b) => {
-                        const priceA = getMinPriceInManwon(a.basePrice);
-                        const priceB = getMinPriceInManwon(b.basePrice);
-                        return priceA - priceB; // 가격 낮은 순
+                // 스튜디오 추천 (백엔드에서 이미 예산 내에서 예산에 가까운 순으로 정렬됨)
+                const studios = allVendors.filter(v => v.category === VendorCategory.STUDIO);
+                console.log(`[스튜디오] 예산 내 업체: ${studios.length}개`);
+                if (studios.length > 0) {
+                    console.log(`[스튜디오] 예산 내 업체 목록:`);
+                    studios.forEach((v, idx) => {
+                        const price = getMinPriceInManwon(v.basePrice);
+                        console.log(`  ${idx + 1}. ${v.name}: ${price}만원 (예산과 차이: ${Math.abs(price - budget.budget_studio)}만원)`);
                     });
-                console.log(`[스튜디오] 예산 내 업체: ${studiosInBudget.length}개`);
-                if (studiosInBudget.length > 0) {
-                    filtered.push(studiosInBudget[0]); // 가장 저렴한 것 하나
-                    console.log(`[스튜디오] 추천: ${studiosInBudget[0].name} (${studiosInBudget[0].basePrice})`);
+                    // 첫 번째 업체가 예산에 가장 가까운 업체
+                    filtered.push(studios[0]);
+                    const price = getMinPriceInManwon(studios[0].basePrice);
+                    console.log(`[스튜디오] 최종 추천: ${studios[0].name} (가격: ${price}만원)`);
+                } else {
+                    console.warn(`[스튜디오] 예산 ${budget.budget_studio}만원 내에 업체가 없습니다.`);
                 }
 
-                // 드레스 추천 (예산 내)
-                const dressesInBudget = allVendors
-                    .filter(v => {
-                        if (v.category !== VendorCategory.DRESS) return false;
-                        const isWithin = isWithinBudget(v.basePrice, budget.budget_dress);
-                        console.log(`[드레스] ${v.name}: basePrice="${v.basePrice}", 예산=${budget.budget_dress}만원, 포함=${isWithin}`);
-                        return isWithin;
-                    })
-                    .sort((a, b) => {
-                        const priceA = getMinPriceInManwon(a.basePrice);
-                        const priceB = getMinPriceInManwon(b.basePrice);
-                        return priceA - priceB;
+                // 드레스 추천 (백엔드에서 이미 예산 내에서 예산에 가까운 순으로 정렬됨)
+                const dresses = allVendors.filter(v => v.category === VendorCategory.DRESS);
+                console.log(`[드레스] 예산 내 업체: ${dresses.length}개`);
+                if (dresses.length > 0) {
+                    console.log(`[드레스] 예산 내 업체 목록:`);
+                    dresses.forEach((v, idx) => {
+                        const price = getMinPriceInManwon(v.basePrice);
+                        console.log(`  ${idx + 1}. ${v.name}: ${price}만원 (예산과 차이: ${Math.abs(price - budget.budget_dress)}만원)`);
                     });
-                console.log(`[드레스] 예산 내 업체: ${dressesInBudget.length}개`);
-                if (dressesInBudget.length > 0) {
-                    filtered.push(dressesInBudget[0]);
-                    console.log(`[드레스] 추천: ${dressesInBudget[0].name} (${dressesInBudget[0].basePrice})`);
+                    // 첫 번째 업체가 예산에 가장 가까운 업체
+                    filtered.push(dresses[0]);
+                    const price = getMinPriceInManwon(dresses[0].basePrice);
+                    console.log(`[드레스] 최종 추천: ${dresses[0].name} (가격: ${price}만원)`);
+                } else {
+                    console.warn(`[드레스] 예산 ${budget.budget_dress}만원 내에 업체가 없습니다.`);
                 }
 
-                // 메이크업 추천 (예산 내)
-                const makeupInBudget = allVendors
-                    .filter(v => {
-                        if (v.category !== VendorCategory.MAKEUP) return false;
-                        const isWithin = isWithinBudget(v.basePrice, budget.budget_makeup);
-                        console.log(`[메이크업] ${v.name}: basePrice="${v.basePrice}", 예산=${budget.budget_makeup}만원, 포함=${isWithin}`);
-                        return isWithin;
-                    })
-                    .sort((a, b) => {
-                        const priceA = getMinPriceInManwon(a.basePrice);
-                        const priceB = getMinPriceInManwon(b.basePrice);
-                        return priceA - priceB;
+                // 메이크업 추천 (백엔드에서 이미 예산 내에서 예산에 가까운 순으로 정렬됨)
+                const makeup = allVendors.filter(v => v.category === VendorCategory.MAKEUP);
+                console.log(`[메이크업] 예산 내 업체: ${makeup.length}개`);
+                if (makeup.length > 0) {
+                    console.log(`[메이크업] 예산 내 업체 목록:`);
+                    makeup.forEach((v, idx) => {
+                        const price = getMinPriceInManwon(v.basePrice);
+                        console.log(`  ${idx + 1}. ${v.name}: ${price}만원 (예산과 차이: ${Math.abs(price - budget.budget_makeup)}만원)`);
                     });
-                console.log(`[메이크업] 예산 내 업체: ${makeupInBudget.length}개`);
-                if (makeupInBudget.length > 0) {
-                    filtered.push(makeupInBudget[0]);
-                    console.log(`[메이크업] 추천: ${makeupInBudget[0].name} (${makeupInBudget[0].basePrice})`);
+                    // 첫 번째 업체가 예산에 가장 가까운 업체
+                    filtered.push(makeup[0]);
+                    const price = getMinPriceInManwon(makeup[0].basePrice);
+                    console.log(`[메이크업] 최종 추천: ${makeup[0].name} (가격: ${price}만원)`);
+                } else {
+                    console.warn(`[메이크업] 예산 ${budget.budget_makeup}만원 내에 업체가 없습니다.`);
                 }
                 
                 console.log(`[추천 업체] 최종 추천 개수: ${filtered.length}개`);
@@ -535,7 +531,7 @@ const ResultView = ({
                 <div className="bg-emerald-900 p-10 text-center relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/diamond-upholstery.png')]"></div>
                     <span className="inline-block px-3 py-1 bg-emerald-800/50 border border-emerald-700 text-emerald-100 text-xs font-bold rounded-full mb-4 tracking-widest">
-                        GYEOL-BTI RESULT
+                        WBTI RESULT
                     </span>
                     <h1 className="text-5xl md:text-6xl font-serif font-bold text-white mb-2 tracking-tight">
                         {result.typeCode}
@@ -562,7 +558,6 @@ const ResultView = ({
                                     <div key={idx} className="flex flex-col items-center bg-stone-50 px-3 py-3 rounded-xl w-20 sm:w-24 border border-stone-100 shadow-sm">
                                         <span className="text-2xl font-serif font-bold text-emerald-800 mb-1">{letter}</span>
                                         <span className="text-xs font-bold text-stone-700">{desc.title}</span>
-                                        <span className="text-[10px] text-stone-400 uppercase">{desc.sub}</span>
                                     </div>
                                 );
                             })}

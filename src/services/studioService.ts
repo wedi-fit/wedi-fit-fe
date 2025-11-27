@@ -1,5 +1,5 @@
 import { Vendor, VendorCategory, AddOnOption } from '../types';
-import { formatOptionPrice, parseOtherOptions } from '../utils/priceFormatter';
+import { formatOptionPrice, parseOtherOptions, extractMinPriceFromBasePrice } from '../utils/priceFormatter';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.wedifit.me';
 
@@ -18,10 +18,16 @@ interface StudioApiResponse {
 
 /**
  * 스튜디오 목록 조회
+ * @param maxBudget 예산 (만원 단위, 선택사항)
  */
-export async function fetchStudios(): Promise<Vendor[]> {
+export async function fetchStudios(maxBudget?: number): Promise<Vendor[]> {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/studios`);
+        let url = `${API_BASE_URL}/api/v1/studios`;
+        if (maxBudget !== undefined && maxBudget > 0) {
+            url += `?max_budget=${maxBudget}`;
+        }
+        
+        const response = await fetch(url);
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -32,7 +38,7 @@ export async function fetchStudios(): Promise<Vendor[]> {
         const data = await response.json();
         console.log('Studios API response:', data);
         const studios: StudioApiResponse[] = data.studios || [];
-        console.log(`Found ${studios.length} studios in API response`);
+        console.log(`Found ${studios.length} studios in API response${maxBudget ? ` (예산: ${maxBudget}만원)` : ''}`);
 
         if (studios.length === 0) {
             console.warn('No studios found in API response');
@@ -118,11 +124,16 @@ function mapStudioToVendor(studio: StudioApiResponse): Vendor {
     // 더미 이미지 (실제 이미지는 추후 추가)
     const dummyImage = 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80';
 
+    // 백엔드에서 이미 min_price를 제공하므로 사용 (없으면 파싱)
+    const minPrice = (studio as any).min_price 
+        ? String((studio as any).min_price)
+        : extractMinPriceFromBasePrice(studio.base_price);
+
     return {
         id: studio.id,
         name: studio.business_name,
         category: VendorCategory.STUDIO,
-        basePrice: studio.base_price || '0',
+        basePrice: minPrice, // 백엔드에서 제공한 최소 가격 사용
         image: dummyImage,
         location: studio.location || '위치 정보 없음',
         distanceKm: 0, // 거리 계산은 추후 구현
